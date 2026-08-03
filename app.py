@@ -43,7 +43,7 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
-        /* Enable multiline header wrapping & freeze column resizing */
+        /* Multiline header text wrapping support */
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
@@ -107,7 +107,7 @@ def analyze_mispunches(row, punch_cols):
     # CASE 1: MISSING PUNCHES OR LAST PUNCH IS IN
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
-        working_hours_str = "(Missing Shift OUT)" # 'Incomplete' removed as requested
+        working_hours_str = "(Missing Shift OUT)"
         issue_type = "Mispunch"
         
         if is_last_punch_an_in and total_punches % 2 == 0:
@@ -180,7 +180,7 @@ if uploaded_file is not None:
     st.subheader("📋 Processing Summary & Live Analysis")
     
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
-    analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Issue Type']
+    analysis_df.columns = ['Total Punches', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
     # Safe header renaming (IN / OUT) and Clean HH:MM Time Formatting
     renamed_punch_cols = {}
@@ -198,15 +198,15 @@ if uploaded_file is not None:
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
-    # REPEATED OFFENDER NUMBER COUNTER
-    base_info_df['Repeated Offender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
+    # REPEATED OFFENDER NUMBER COUNTER (Explicit 2-line name)
+    base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     # Merge Clean Table
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
     
     # Rearrange columns
     cols_order = (
-        ['P.Soft ID', 'Employee Name', 'Repeated Offender', 'No. of Working Hours', 'Mispunch Category', 'Issue Type'] 
+        ['P.Soft ID', 'Employee Name', 'Repeated\nOffender', 'No. of\nWorking Hours', 'Mispunch Category', 'Issue Type'] 
         + list(punches_df_cleaned.columns) 
         + ['Total Punches', 'Status']
     )
@@ -247,20 +247,20 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration settings for tight compact spacing
+    # Column configuration with explicit width allocation
     column_config_settings = {
-        "Repeated Offender": st.column_config.NumberColumn(
+        "Repeated\nOffender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
-            width="small",
+            width="medium",
             format="%d"
         ),
         "Total Punches": st.column_config.NumberColumn(
             "Total\nPunches", 
             width="small"
         ),
-        "No. of Working Hours": st.column_config.TextColumn(
+        "No. of\nWorking Hours": st.column_config.TextColumn(
             "No. of\nWorking Hours", 
-            width="small"
+            width="medium"
         ),
         "Status": st.column_config.TextColumn(
             "Status", 
