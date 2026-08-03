@@ -43,7 +43,7 @@ except Exception as e:
 
 # Main UI Header
 st.title("📊 Attendance Mispunch Detection & Automation System")
-st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, aur Duplicate Scans auto-detect ho sakein.")
+st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, Duplicate Scans, aur Shift Hours auto-detect ho sakein.")
 
 uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
 
@@ -70,7 +70,42 @@ def analyze_mispunches(row, punch_cols):
     status = "OK"
     category = "Complete"
     action = "-"
+    working_hours_str = "N/A"
     
+    # Calculate Working Hours (First Punch to Last Punch)
+    if total_punches >= 2:
+        # Dummy date combine karke duration nikala hai (Overnight shift handling included)
+        dummy_date = datetime(2026, 1, 1)
+        start_dt = datetime.combine(dummy_date, punches[0])
+        end_dt = datetime.combine(dummy_date, punches[-1])
+        
+        # Night shift validation (Agar End time, Start time se chota ho)
+        if end_dt < start_dt:
+            end_dt += timedelta(days=1)
+            
+        time_diff = end_dt - start_dt
+        total_seconds = time_diff.total_seconds()
+        
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        
+        working_hours_str = f"{hours:02d}:{minutes:02d}"
+        
+        # Rules: 8 hours 45 mins = 31500 seconds | 9 hours 10 mins = 33000 seconds
+        min_allowed_seconds = (8 * 3600) + (45 * 60) # 31500 secs
+        max_allowed_seconds = (9 * 3600) + (10 * 60) # 33000 secs
+        
+        # Rule check agar doosra mispunch error pehle se na lag raha ho
+        if total_punches % 2 == 0 and total_punches < 7:
+            if total_seconds < min_allowed_seconds:
+                status = "Error"
+                category = "Short Working Hours (< 08:45)"
+                action = f"Working time ({working_hours_str}) is less than 8h 45m"
+            elif total_seconds > max_allowed_seconds:
+                status = "Error"
+                category = "Overtime / Excessive Hours (> 09:10)"
+                action = f"Working time ({working_hours_str}) is more than 9h 10m"
+
     # 1. Duplicate Scans (7+ Punches)
     if total_punches in [7, 8, 9, 10]:
         status = "Error"
@@ -98,7 +133,7 @@ def analyze_mispunches(row, punch_cols):
             category = "Missing Break Return (5 Punches)"
             action = f"30-min Break Return missing after {punches[3].strftime('%H:%M')}"
             
-    return pd.Series([total_punches, status, category, action])
+    return pd.Series([total_punches, working_hours_str, status, category, action])
 
 if uploaded_file is not None:
     if uploaded_file.name.endswith('.csv'):
@@ -118,7 +153,7 @@ if uploaded_file is not None:
     st.subheader("📋 Processing Summary & Live Analysis")
     
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
-    analysis_df.columns = ['Total Punches', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time']
+    analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time']
     
     final_df = pd.concat([df[[id_col, name_col, manager_col, shift_col]], analysis_df, df[punch_cols]], axis=1)
     
