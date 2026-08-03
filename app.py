@@ -3,8 +3,11 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 
-# Page Config
-st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
+# Page Config (Updated Page Title)
+st.set_page_config(
+    page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
+    layout="wide"
+)
 
 # Function to encode JPEG image file
 def get_base64_of_bin_file(bin_file):
@@ -68,8 +71,8 @@ try:
 except Exception:
     pass
 
-# Main UI Header
-st.title("📊 Attendance Mispunch & Working Hours Detection System")
+# Main UI Header (Updated Tool Name)
+st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 
 st.markdown("---")
 
