@@ -71,62 +71,17 @@ def analyze_mispunches(row, punch_cols):
     action = "-"
     working_hours_str = "N/A"
     
-    # Calculate Net Working Hours (Subtracting Breaks if even number of punches exist)
-    if total_punches >= 2:
-        dummy_date = datetime(2026, 1, 1)
-        total_seconds = 0
-        
-        # Pairs mein time difference add karenge (e.g. 1-to-2 and 3-to-4)
-        if total_punches % 2 == 0:
-            for i in range(0, total_punches, 2):
-                start_dt = datetime.combine(dummy_date, punches[i])
-                end_dt = datetime.combine(dummy_date, punches[i+1])
-                
-                # Overnight shift handling
-                if end_dt < start_dt:
-                    end_dt += timedelta(days=1)
-                
-                total_seconds += (end_dt - start_dt).total_seconds()
-        else:
-            # Odd punches case: First to Last duration (just for reference)
-            start_dt = datetime.combine(dummy_date, punches[0])
-            end_dt = datetime.combine(dummy_date, punches[-1])
-            if end_dt < start_dt:
-                end_dt += timedelta(days=1)
-            total_seconds = (end_dt - start_dt).total_seconds()
-        
-        hours = int(total_seconds // 3600)
-        minutes = int((total_seconds % 3600) // 60)
-        
-        working_hours_str = f"{hours:02d}:{minutes:02d}"
-        
-        # Rules (8h 50m = 31800 sec | 9h 20m = 33600 sec)
-        min_allowed_seconds = (8 * 3600) + (50 * 60)
-        max_allowed_seconds = (9 * 3600) + (20 * 60)
-        
-        # Standard validation for complete shift (Even punches < 7)
-        if total_punches % 2 == 0 and total_punches < 7:
-            if total_seconds < min_allowed_seconds:
-                status = "Error"
-                category = "Short Working Hours (< 08:50)"
-                action = f"Working time ({working_hours_str}) is less than 8h 50m"
-            elif total_seconds > max_allowed_seconds:
-                status = "Error"
-                category = "Overtime / Excessive Hours (> 09:20)"
-                action = f"Working time ({working_hours_str}) is more than 9h 20m"
-
-    # 1. Duplicate Scans (7+ Punches)
-    if total_punches in [7, 8, 9, 10]:
+    # -------------------------------------------------------------
+    # CASE 1: MISSING PUNCHES (Odd Punches: 1, 3, 5)
+    # Pehle Punch Missing Detect Hoga, Hours Rule Is Par Nahi Lagega
+    # -------------------------------------------------------------
+    if total_punches % 2 != 0:
         status = "Error"
-        category = "Duplicate / Extra Scans"
-        action = f"Review Extra Scans ({total_punches} Punches)"
+        working_hours_str = "Incomplete (Missing Punch)"
         
-    # 2. Odd Punch Cases (Mispunches)
-    elif total_punches % 2 != 0:
-        status = "Error"
         if total_punches == 1:
             category = "Single Scan Only"
-            action = "Check Shift IN / OUT"
+            action = "Missing Shift OUT or Shift IN"
             
         elif total_punches == 3:
             category = "Missing Break / Shift IN (3 Punches)"
@@ -140,8 +95,56 @@ def analyze_mispunches(row, punch_cols):
                 
         elif total_punches == 5:
             category = "Missing Break Return (5 Punches)"
-            action = f"30-min Break Return missing after {punches[3].strftime('%H:%M')}"
+            action = f"Break Return missing after {punches[3].strftime('%H:%M')}"
+
+    # -------------------------------------------------------------
+    # CASE 2: DUPLICATE / EXTRA SCANS (7+ Punches)
+    # -------------------------------------------------------------
+    elif total_punches in [7, 8, 9, 10]:
+        status = "Error"
+        working_hours_str = "N/A (Extra Scans)"
+        category = "Duplicate / Extra Scans"
+        action = f"Review Extra Scans ({total_punches} Punches)"
+
+    # -------------------------------------------------------------
+    # CASE 3: COMPLETE PAIRS (2, 4, 6 Punches)
+    # Sirf Yahan Net Working Hours Calculate Aur Validate Honge
+    # -------------------------------------------------------------
+    elif total_punches >= 2:
+        dummy_date = datetime(2026, 1, 1)
+        total_seconds = 0
+        
+        # Pairs mein net work calculate karenge (e.g. 1-to-2 and 3-to-4)
+        for i in range(0, total_punches, 2):
+            start_dt = datetime.combine(dummy_date, punches[i])
+            end_dt = datetime.combine(dummy_date, punches[i+1])
             
+            # Overnight shift handling
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            
+            total_seconds += (end_dt - start_dt).total_seconds()
+        
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        
+        working_hours_str = f"{hours:02d}:{minutes:02d}"
+        
+        # Time Rules:
+        # 8 hours 50 mins = 31,800 seconds
+        # 9 hours 20 mins = 33,600 seconds
+        min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 sec
+        max_allowed_seconds = (9 * 3600) + (20 * 60) # 33600 sec
+        
+        if total_seconds < min_allowed_seconds:
+            status = "Error"
+            category = "Short Working Hours (< 08:50)"
+            action = f"Net working time ({working_hours_str}) is less than 8h 50m"
+        elif total_seconds > max_allowed_seconds:
+            status = "Error"
+            category = "Overtime / Excessive Hours (> 09:20)"
+            action = f"Net working time ({working_hours_str}) is more than 9h 20m"
+
     return pd.Series([total_punches, working_hours_str, status, category, action])
 
 if uploaded_file is not None:
