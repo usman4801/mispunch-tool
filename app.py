@@ -43,7 +43,7 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
-        /* Freeze column resizing handles while keeping compact look */
+        /* Enable multiline header wrapping & freeze column resizing */
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
@@ -204,7 +204,7 @@ if uploaded_file is not None:
     # Merge Clean Table
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
     
-    # Rearrange columns without 'Suggested Missing Action / Time'
+    # Rearrange columns
     cols_order = (
         ['P.Soft ID', 'Employee Name', 'Repeated Offender', 'No. of Working Hours', 'Mispunch Category', 'Issue Type'] 
         + list(punches_df_cleaned.columns) 
@@ -247,7 +247,7 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration for compact size
+    # Column configuration settings
     column_config_settings = {
         "Repeated Offender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
@@ -259,7 +259,7 @@ if uploaded_file is not None:
         ),
         "No. of Working Hours": st.column_config.TextColumn(
             "No. of\nWorking Hours", 
-            width="small"
+            width="medium"  # Width increased to medium so full text is visible
         ),
         "Status": st.column_config.TextColumn(
             "Status", 
