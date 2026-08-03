@@ -43,13 +43,10 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
-        /* Multiline header text wrapping support */
+        /* Enable multiline header text wrapping and smooth horizontal scrolling */
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
-        }}
-        div[data-testid="stDataFrame"] [data-testid="stDataFrameResizable"] {{
-            pointer-events: none !important;
         }}
         </style>
         """,
@@ -107,7 +104,7 @@ def analyze_mispunches(row, punch_cols):
     # CASE 1: MISSING PUNCHES OR LAST PUNCH IS IN
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
-        working_hours_str = "(Missing Shift OUT)"
+        working_hours_str = "N/A"
         issue_type = "Mispunch"
         
         if is_last_punch_an_in and total_punches % 2 == 0:
@@ -124,7 +121,7 @@ def analyze_mispunches(row, punch_cols):
     # CASE 2: EXTRA PUNCHES (7 or More Punches)
     elif total_punches >= 7:
         status = "Error"
-        working_hours_str = "N/A (Extra Scans)"
+        working_hours_str = "N/A"
         category = "Extra Punches"
         issue_type = "Mispunch"
 
@@ -198,7 +195,7 @@ if uploaded_file is not None:
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
-    # REPEATED OFFENDER NUMBER COUNTER (Explicit 2-line name)
+    # REPEATED OFFENDER NUMBER COUNTER
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     # Merge Clean Table
@@ -247,7 +244,7 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration with explicit width allocation
+    # Column configuration with flexible widths
     column_config_settings = {
         "Repeated\nOffender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
@@ -281,7 +278,9 @@ if uploaded_file is not None:
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
         st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
-            st.dataframe(mispunches_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+            # Dropping 'No. of\nWorking Hours' specifically for mispunches section
+            mispunch_display_df = mispunches_only.drop(columns=['Issue Type', 'No. of\nWorking Hours'])
+            st.dataframe(mispunch_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
 
