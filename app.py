@@ -12,12 +12,12 @@ st.set_page_config(
 
 # Function to encode JPEG image file
 def get_base64_of_bin_file(bin_file):
-  with open(bin_file, 'rb') as f:
+  with open(bin_file, "rb") as f:
     data = f.read()
   return base64.b64encode(data).decode()
 
 
-image_filename = 'bg.jpeg.jpeg'
+image_filename = "bg.jpeg.jpeg"
 
 try:
   bin_str = get_base64_of_bin_file(image_filename)
@@ -52,33 +52,47 @@ try:
             color: #000000 !important;
         }}
 
-        div[data-testid="stRadioButton"] > div {{
-            flex-direction: row;
-            gap: 15px;
-        }}
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
         }}
         
-        /* CLEAN & EXACT ORIGINAL METRIC CARD STYLING */
+        /* EXACT ORIGINAL METRIC CARD STYLING FOR BUTTONS */
         div.stButton > button {{
-            height: 100px !important;
+            height: 110px !important;
             background-color: #ffffff !important;
-            color: #31333F !important;
             border-radius: 10px !important;
-            border: 1px solid #e6e6e6 !important;
-            box-shadow: 0px 1px 3px rgba(0,0,0,0.05) !important;
+            border: 1px solid #e0e0e0 !important;
+            box-shadow: 0px 2px 5px rgba(0,0,0,0.03) !important;
+            padding: 10px !important;
             transition: all 0.2s ease-in-out !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
         }}
         div.stButton > button:hover {{
             border-color: #ff9900 !important;
-            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08) !important;
         }}
         div.stButton > button[kind="primary"] {{
             background-color: #ff4b4b !important;
-            color: #ffffff !important;
             border: none !important;
+        }}
+        div.stButton > button[kind="primary"] * {{
+            color: #ffffff !important;
+        }}
+        
+        .card-title {{
+            font-size: 14px !important;
+            color: #666666 !important;
+            font-weight: 500 !important;
+            margin-bottom: 4px !important;
+        }}
+        .card-value {{
+            font-size: 32px !important;
+            color: #111111 !important;
+            font-weight: 700 !important;
         }}
         </style>
         """,
@@ -279,7 +293,7 @@ if uploaded_file is not None:
     st.session_state.selected_view = "mispunches"
 
   # -------------------------------------------------------------
-  # CLICKABLE CONTAINERS (ORIGINAL LOOK, NO EXTRA BUTTONS)
+  # EXACT ORIGINAL METRIC CARDS (DIRECTLY CLICKABLE)
   # -------------------------------------------------------------
   col1, col2, col3, col4 = st.columns(4)
 
@@ -288,7 +302,7 @@ if uploaded_file is not None:
         "primary" if st.session_state.selected_view == "all" else "secondary"
     )
     if st.button(
-        f"Total Records\n\n{len(final_df)}",
+        f"Total Records\n{len(final_df)}",
         key="card_all",
         type=type_all,
         use_container_width=True,
@@ -300,7 +314,7 @@ if uploaded_file is not None:
         "primary" if st.session_state.selected_view == "clean" else "secondary"
     )
     if st.button(
-        f"Clean Records\n\n{len(clean_records_only)}",
+        f"Clean Records\n{len(clean_records_only)}",
         key="card_clean",
         type=type_clean,
         use_container_width=True,
@@ -314,7 +328,7 @@ if uploaded_file is not None:
         else "secondary"
     )
     if st.button(
-        f"Mispunches\n\n{len(mispunches_only)}",
+        f"Mispunches\n{len(mispunches_only)}",
         key="card_mispunch",
         type=type_mispunches,
         use_container_width=True,
@@ -328,7 +342,7 @@ if uploaded_file is not None:
         else "secondary"
     )
     if st.button(
-        f"Defaulter Hours\n\n{len(defaulter_hours_only)}",
+        f"Defaulter Hours\n{len(defaulter_hours_only)}",
         key="card_defaulters",
         type=type_defaulters,
         use_container_width=True,
