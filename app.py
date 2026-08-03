@@ -1,40 +1,45 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import base64
 
 # Page Config
 st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
 
-# ==========================================
-# BACKGROUND IMAGE CONFIGURATION
-# Yahan quotes (" ") ke andar apni GitHub raw image ka link paste karein
-# ==========================================
-bg_image_url = "https://raw.githubusercontent.com/usman4801/mispunch-tool/main/bg.jpg"
+# Function to encode JPEG image file
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 
-st.markdown(
-    f"""
-    <style>
-    /* Background Image setup */
-    .stApp {{
-        background-image: url("{bg_image_url}");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }}
+# GitHub screenshot ke mutabiq aapki file ka exact name 'bg.jpeg.jpeg' hai
+image_filename = 'bg.jpeg.jpeg'
 
-    /* Card background for readable text */
-    .block-container {{
-        background-color: rgba(255, 255, 255, 0.90);
-        padding: 2rem;
-        border-radius: 12px;
-        margin-top: 2rem;
-        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+try:
+    bin_str = get_base64_of_bin_file(image_filename)
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/jpeg;base64,{bin_str}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        .block-container {{
+            background-color: rgba(255, 255, 255, 0.90);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-top: 1.5rem;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+except Exception as e:
+    st.error(f"Background image load nahi ho saki: {e}")
 
 # Main UI Header
 st.title("📊 Attendance Mispunch Detection & Automation System")
