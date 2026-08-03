@@ -161,7 +161,6 @@ if uploaded_file is not None:
         
     col_names = df.columns.tolist()
     
-    # Raw Columns Extraction
     id_col = col_names[0]
     name_col = col_names[1]
     punch_cols = col_names[4:]
@@ -171,26 +170,35 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
-    # Punch Columns Ko IN/OUT Labels Ke Sath Display Rename Karna
-    punch_labels = ["Shift IN", "Break 1 OUT", "Break 1 IN", "Shift OUT", "Break 2 OUT", "Break 2 IN"]
+    # Simple alternate IN and OUT headers (no numbers)
     renamed_punch_cols = {}
     for idx, col in enumerate(punch_cols):
-        if idx < len(punch_labels):
-            renamed_punch_cols[col] = punch_labels[idx]
+        if idx % 2 == 0:
+            renamed_punch_cols[col] = "IN"
         else:
-            renamed_punch_cols[col] = f"Scan {idx+1}"
+            renamed_punch_cols[col] = "OUT"
             
     punches_df_renamed = df[punch_cols].rename(columns=renamed_punch_cols)
     
-    # ID aur Name Columns Ko Properly Rename Karna
+    # ID aur Name Columns
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
-    # Clean UI DataFrame Structure
+    # Full Table Structure
     final_df = pd.concat([base_info_df, analysis_df, punches_df_renamed], axis=1)
     
-    mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"]
-    defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"]
+    # Index Ko S.NO Set Karna (Starting from 1)
+    final_df.index = range(1, len(final_df) + 1)
+    final_df.index.name = "S.NO"
+    
+    mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
+    mispunches_only.index = range(1, len(mispunches_only) + 1)
+    mispunches_only.index.name = "S.NO"
+    
+    defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
+    defaulter_hours_only.index = range(1, len(defaulter_hours_only) + 1)
+    defaulter_hours_only.index.name = "S.NO"
+    
     total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
     # Top Counters
@@ -244,9 +252,9 @@ if uploaded_file is not None:
         import io
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
-            mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
-            defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
+            df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=True, sheet_name='Summary Report')
+            mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=True, sheet_name='Mispunches')
+            defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=True, sheet_name='Defaulter Hours')
         return buffer.getvalue()
 
     excel_data = convert_df(final_df)
