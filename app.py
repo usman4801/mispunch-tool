@@ -161,7 +161,7 @@ if uploaded_file is not None:
         
     col_names = df.columns.tolist()
     
-    # Sirf pehle 2 main identifier columns rakhenge (e.g., ID aur Employee Name)
+    # Raw Columns Extraction
     id_col = col_names[0]
     name_col = col_names[1]
     punch_cols = col_names[4:]
@@ -171,8 +171,23 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
-    # Column 2 aur Column 3 (Unnamed: 2, Unnamed: 3) yahan ignore kar diye gaye hain
-    final_df = pd.concat([df[[id_col, name_col]], analysis_df, df[punch_cols]], axis=1)
+    # Punch Columns Ko IN/OUT Labels Ke Sath Display Rename Karna
+    punch_labels = ["Shift IN", "Break 1 OUT", "Break 1 IN", "Shift OUT", "Break 2 OUT", "Break 2 IN"]
+    renamed_punch_cols = {}
+    for idx, col in enumerate(punch_cols):
+        if idx < len(punch_labels):
+            renamed_punch_cols[col] = punch_labels[idx]
+        else:
+            renamed_punch_cols[col] = f"Scan {idx+1}"
+            
+    punches_df_renamed = df[punch_cols].rename(columns=renamed_punch_cols)
+    
+    # ID aur Name Columns Ko Properly Rename Karna
+    base_info_df = df[[id_col, name_col]].copy()
+    base_info_df.columns = ['P.Soft ID', 'Employee Name']
+    
+    # Clean UI DataFrame Structure
+    final_df = pd.concat([base_info_df, analysis_df, punches_df_renamed], axis=1)
     
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"]
