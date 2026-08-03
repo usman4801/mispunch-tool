@@ -33,6 +33,11 @@ try:
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
+        /* Styling Radio Buttons like Pills/Tabs */
+        div[data-testid="stRadioButton"] > div {{
+            flex-direction: row;
+            gap: 15px;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -70,7 +75,7 @@ def analyze_mispunches(row, punch_cols):
     category = "Complete"
     action = "-"
     working_hours_str = "N/A"
-    issue_type = "Clean" # 'Mispunch', 'Defaulter Hours', or 'Clean'
+    issue_type = "Clean"
     
     # -------------------------------------------------------------
     # CASE 1: MISSING PUNCHES (Odd Punches: 1, 3, 5)
@@ -110,7 +115,6 @@ def analyze_mispunches(row, punch_cols):
 
     # -------------------------------------------------------------
     # CASE 3: COMPLETE PAIRS (2, 4, 6 Punches)
-    # Check for Defaulter Working Hours
     # -------------------------------------------------------------
     elif total_punches in [2, 4, 6]:
         dummy_date = datetime(2026, 1, 1)
@@ -176,6 +180,7 @@ if uploaded_file is not None:
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"]
     total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
+    # Top Counters
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Records", len(final_df))
     col2.metric("Clean Records", len(final_df) - total_errors)
@@ -185,33 +190,44 @@ if uploaded_file is not None:
     st.markdown("---")
     
     # -------------------------------------------------------------
-    # DEFAULT VIEW: MISPUNCHES & EXTRA PUNCHES LIST
+    # VIEW SELECTOR BUTTONS (Select List to Display)
     # -------------------------------------------------------------
-    st.subheader("⚠️ Missing & Extra Punches List")
-    if len(mispunches_only) > 0:
-        st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True)
-    else:
-        st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
-
+    view_option = st.radio(
+        "🔎 **Select List View to Inspect:**",
+        options=[
+            f"⚠️ Missing & Extra Punches ({len(mispunches_only)})", 
+            f"⏰ Defaulter Hours List ({len(defaulter_hours_only)})",
+            f"📊 All Records ({len(final_df)})"
+        ],
+        index=0
+    )
+    
     st.markdown("---")
-    
-    # -------------------------------------------------------------
-    # BUTTON TO SHOW DEFAULTER HOURS LIST
-    # -------------------------------------------------------------
-    show_hours = st.checkbox("⏰ Show Defaulter Hours List (< 08:50 or > 09:10)", value=False)
-    
-    if show_hours:
-        st.subheader("⏰ Defaulter Working Hours List")
+
+    # DISPLAY LIST BASED ON CLICKED OPTION
+    if "Defaulter Hours" in view_option:
+        st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
+        st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
         if len(defaulter_hours_only) > 0:
             st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), use_container_width=True)
         else:
-            st.info("🎉 Koi Defaulter Working Hours wala record nahi mila!")
+            st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
+
+    elif "Missing & Extra Punches" in view_option:
+        st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
+        st.caption("Missing punches (1, 3, 5) ya Extra Scans (7+) wale employees ki list:")
+        if len(mispunches_only) > 0:
+            st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True)
+        else:
+            st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
+
+    else:
+        st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
+        st.dataframe(final_df.drop(columns=['Issue Type']), use_container_width=True)
 
     st.markdown("---")
     
-    # -------------------------------------------------------------
-    # EXPORT / DOWNLOAD OPTION
-    # -------------------------------------------------------------
+    # Download Button
     @st.cache_data
     def convert_df(df_to_export):
         import io
@@ -224,7 +240,7 @@ if uploaded_file is not None:
 
     excel_data = convert_df(final_df)
     st.download_button(
-        label="📥 Download Complete Refined Excel File",
+        label="📥 Download Complete Report (Multi-Sheet Excel)",
         data=excel_data,
         file_name="Refined_Attendance_Report.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
