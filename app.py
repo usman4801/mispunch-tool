@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 
-# Page Config
+# Page Config & Hide Unwanted Traceback Errors
 st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
 
 # Function to encode JPEG image file
@@ -41,8 +41,8 @@ try:
         """,
         unsafe_allow_html=True
     )
-except Exception as e:
-    st.error(f"Background image load nahi ho saki: {e}")
+except Exception:
+    pass
 
 # Main UI Header
 st.title("📊 Attendance Mispunch & Working Hours Detection System")
@@ -75,9 +75,7 @@ def analyze_mispunches(row, punch_cols):
     working_hours_str = "N/A"
     issue_type = "Clean"
     
-    # -------------------------------------------------------------
     # CASE 1: MISSING PUNCHES (Odd Punches: 1, 3, 5)
-    # -------------------------------------------------------------
     if total_punches % 2 != 0:
         status = "Error"
         working_hours_str = "Incomplete (Missing Punch)"
@@ -101,9 +99,7 @@ def analyze_mispunches(row, punch_cols):
             category = "Missing Break Return (5 Punches)"
             action = f"Break Return missing after {punches[3].strftime('%H:%M')}"
 
-    # -------------------------------------------------------------
     # CASE 2: EXTRA PUNCHES (7 or More Punches)
-    # -------------------------------------------------------------
     elif total_punches >= 7:
         status = "Error"
         working_hours_str = "N/A (Extra Scans)"
@@ -111,9 +107,7 @@ def analyze_mispunches(row, punch_cols):
         action = f"Review Extra Scans ({total_punches} Punches)"
         issue_type = "Mispunch"
 
-    # -------------------------------------------------------------
     # CASE 3: COMPLETE PAIRS (2, 4, 6 Punches)
-    # -------------------------------------------------------------
     elif total_punches in [2, 4, 6]:
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
@@ -170,7 +164,7 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
-    # Safe renaming to keep column names unique while displaying clean IN / OUT
+    # Safe header renaming (IN / OUT)
     renamed_punch_cols = {}
     for idx, col in enumerate(punch_cols):
         pair_num = (idx // 2) + 1
@@ -239,15 +233,21 @@ if uploaded_file is not None:
 
     st.markdown("---")
     
-    # Download Option
+    # Safe Download Option (Standard pandas engine)
     @st.cache_data
     def convert_df(df_to_export):
         import io
         buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
-            mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
-            defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
+        try:
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
+                mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
+                defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
+        except Exception:
+            with pd.ExcelWriter(buffer) as writer:
+                df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
+                mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
+                defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
         return buffer.getvalue()
 
     excel_data = convert_df(final_df)
