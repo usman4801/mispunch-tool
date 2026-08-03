@@ -206,9 +206,18 @@ if uploaded_file is not None:
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
+    # -------------------------------------------------------------
+    # REPEATED OFFENDER NUMBER COUNTER (Clean Name & Pure Numbers)
+    # -------------------------------------------------------------
+    base_info_df['Repeated Offender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
+    
     # Merge Clean Table
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
     
+    # Rearrange columns so 'Repeated Offender' appears next to Name/Analysis
+    cols_order = ['P.Soft ID', 'Employee Name', 'Repeated Offender', 'Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type'] + list(punches_df_cleaned.columns)
+    final_df = final_df[cols_order]
+
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
@@ -244,12 +253,19 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
+    # Column configuration for compact size
+    column_config_settings = {
+        "Total Punches": st.column_config.NumberColumn("Total Punches", width="small"),
+        "No. of Working Hours": st.column_config.TextColumn("No. of Working Hours", width="small"),
+        "Repeated Offender": st.column_config.NumberColumn("Repeated Offender", width="small")
+    }
+
     # DISPLAY LIST BASED ON CLICKED CARD / SELECTION
     if st.session_state.selected_view == "defaulters":
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
         if len(defaulter_hours_only) > 0:
-            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
+            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
 
@@ -257,18 +273,18 @@ if uploaded_file is not None:
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
         st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
-            st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
+            st.dataframe(mispunches_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
 
     elif st.session_state.selected_view == "clean":
         st.subheader(f"✅ Clean Employee Records ({len(clean_records_only)} Records)")
         st.caption("Pura time aur exact punches wale perfect records:")
-        st.dataframe(clean_records_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
+        st.dataframe(clean_records_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
 
     else:
         st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
-        st.dataframe(final_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
+        st.dataframe(final_df.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
 
     st.markdown("---")
     
