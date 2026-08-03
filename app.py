@@ -170,13 +170,15 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
-    # Simple alternate IN and OUT headers (no numbers)
+    # Safe renaming to keep column names unique while displaying clean IN / OUT
     renamed_punch_cols = {}
     for idx, col in enumerate(punch_cols):
-        if idx % 2 == 0:
-            renamed_punch_cols[col] = "IN"
+        pair_num = (idx // 2) + 1
+        label = "IN" if idx % 2 == 0 else "OUT"
+        if pair_num == 1:
+            renamed_punch_cols[col] = label
         else:
-            renamed_punch_cols[col] = "OUT"
+            renamed_punch_cols[col] = f"{label} ({pair_num})"
             
     punches_df_renamed = df[punch_cols].rename(columns=renamed_punch_cols)
     
@@ -184,20 +186,11 @@ if uploaded_file is not None:
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
-    # Full Table Structure
+    # Merge Clean Table
     final_df = pd.concat([base_info_df, analysis_df, punches_df_renamed], axis=1)
     
-    # Index Ko S.NO Set Karna (Starting from 1)
-    final_df.index = range(1, len(final_df) + 1)
-    final_df.index.name = "S.NO"
-    
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
-    mispunches_only.index = range(1, len(mispunches_only) + 1)
-    mispunches_only.index.name = "S.NO"
-    
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
-    defaulter_hours_only.index = range(1, len(defaulter_hours_only) + 1)
-    defaulter_hours_only.index.name = "S.NO"
     
     total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
@@ -228,7 +221,7 @@ if uploaded_file is not None:
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
         if len(defaulter_hours_only) > 0:
-            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), use_container_width=True)
+            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
 
@@ -236,13 +229,13 @@ if uploaded_file is not None:
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
         st.caption("Missing punches (1, 3, 5) ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
-            st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True)
+            st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
 
     else:
         st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
-        st.dataframe(final_df.drop(columns=['Issue Type']), use_container_width=True)
+        st.dataframe(final_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
 
     st.markdown("---")
     
@@ -252,9 +245,9 @@ if uploaded_file is not None:
         import io
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=True, sheet_name='Summary Report')
-            mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=True, sheet_name='Mispunches')
-            defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=True, sheet_name='Defaulter Hours')
+            df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
+            mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
+            defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
         return buffer.getvalue()
 
     excel_data = convert_df(final_df)
