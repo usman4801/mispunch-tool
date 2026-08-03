@@ -1,36 +1,40 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import base64
 
 # Page Config
 st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
 
-# Function to set background image
-def set_bg(main_bg):
-    with open(main_bg, "rb") as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode()
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{b64}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+# ==========================================
+# BACKGROUND IMAGE CONFIGURATION
+# Yahan quotes (" ") ke andar apni GitHub raw image ka link paste karein
+# ==========================================
+bg_image_url = "https://raw.githubusercontent.com/usman4801/mispunch-tool/main/bg.jpg"
 
-# Background apply karein (Note: Apni image ka naam 'bg.jpg' hi rakhein, agar alag hai toh yahan change kar lein)
-try:
-    set_bg('bg.jpg')
-except Exception:
-    pass
+st.markdown(
+    f"""
+    <style>
+    /* Background Image setup */
+    .stApp {{
+        background-image: url("{bg_image_url}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+
+    /* Card background for readable text */
+    .block-container {{
+        background-color: rgba(255, 255, 255, 0.90);
+        padding: 2rem;
+        border-radius: 12px;
+        margin-top: 2rem;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Main UI Header
 st.title("📊 Attendance Mispunch Detection & Automation System")
