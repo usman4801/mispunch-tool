@@ -73,7 +73,6 @@ def analyze_mispunches(row, punch_cols):
     
     # -------------------------------------------------------------
     # CASE 1: MISSING PUNCHES (Odd Punches: 1, 3, 5)
-    # Pehle Punch Missing Detect Hoga, Hours Rule Is Par Nahi Lagega
     # -------------------------------------------------------------
     if total_punches % 2 != 0:
         status = "Error"
@@ -98,23 +97,23 @@ def analyze_mispunches(row, punch_cols):
             action = f"Break Return missing after {punches[3].strftime('%H:%M')}"
 
     # -------------------------------------------------------------
-    # CASE 2: DUPLICATE / EXTRA SCANS (7+ Punches)
+    # CASE 2: EXTRA PUNCHES (7 or More Punches)
     # -------------------------------------------------------------
-    elif total_punches in [7, 8, 9, 10]:
+    elif total_punches >= 7:
         status = "Error"
         working_hours_str = "N/A (Extra Scans)"
-        category = "Duplicate / Extra Scans"
+        category = "Extra Punches"
         action = f"Review Extra Scans ({total_punches} Punches)"
 
     # -------------------------------------------------------------
     # CASE 3: COMPLETE PAIRS (2, 4, 6 Punches)
-    # Sirf Yahan Net Working Hours Calculate Aur Validate Honge
+    # Shift timing chahay kuch bhi ho, agar Net Hours poore hain toh OK
     # -------------------------------------------------------------
-    elif total_punches >= 2:
+    elif total_punches in [2, 4, 6]:
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
         
-        # Pairs mein net work calculate karenge (e.g. 1-to-2 and 3-to-4)
+        # Pairs mein net work calculate karenge (e.g. 1-to-2, 3-to-4, 5-to-6)
         for i in range(0, total_punches, 2):
             start_dt = datetime.combine(dummy_date, punches[i])
             end_dt = datetime.combine(dummy_date, punches[i+1])
@@ -130,7 +129,7 @@ def analyze_mispunches(row, punch_cols):
         
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        # Time Rules:
+        # Working Hours Allowed Limits:
         # 8 hours 50 mins = 31,800 seconds
         # 9 hours 10 mins = 33,000 seconds
         min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 sec
@@ -144,6 +143,10 @@ def analyze_mispunches(row, punch_cols):
             status = "Error"
             category = "Overtime / Excessive Hours (> 09:10)"
             action = f"Net working time ({working_hours_str}) is more than 9h 10m"
+        else:
+            status = "OK"
+            category = "Complete"
+            action = "-"
 
     return pd.Series([total_punches, working_hours_str, status, category, action])
 
