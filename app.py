@@ -43,6 +43,14 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
+        /* Disable column resize handles & enable multiline header wrapping */
+        div[data-testid="stDataFrame"] iframe, div[data-testid="stDataFrame"] {{
+            pointer-events: auto;
+        }}
+        div[data-testid="stDataFrame"] th {{
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -206,9 +214,7 @@ if uploaded_file is not None:
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
-    # -------------------------------------------------------------
-    # REPEATED OFFENDER NUMBER COUNTER (Clean Name & Pure Numbers)
-    # -------------------------------------------------------------
+    # REPEATED OFFENDER NUMBER COUNTER
     base_info_df['Repeated Offender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     # Merge Clean Table
@@ -253,11 +259,21 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration for compact size
+    # Column configuration with explicit 2-line labels & compact widths
     column_config_settings = {
-        "Total Punches": st.column_config.NumberColumn("Total Punches", width="small"),
-        "No. of Working Hours": st.column_config.TextColumn("No. of Working Hours", width="small"),
-        "Repeated Offender": st.column_config.NumberColumn("Repeated Offender", width="small")
+        "Repeated Offender": st.column_config.NumberColumn(
+            "Repeated\nOffender", 
+            width="small",
+            help="Number of occurrences"
+        ),
+        "Total Punches": st.column_config.NumberColumn(
+            "Total\nPunches", 
+            width="small"
+        ),
+        "No. of Working Hours": st.column_config.TextColumn(
+            "No. of\nWorking Hours", 
+            width="small"
+        )
     }
 
     # DISPLAY LIST BASED ON CLICKED CARD / SELECTION
