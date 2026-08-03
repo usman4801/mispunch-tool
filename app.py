@@ -107,7 +107,7 @@ def analyze_mispunches(row, punch_cols):
     # CASE 1: MISSING PUNCHES OR LAST PUNCH IS IN
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
-        working_hours_str = "Incomplete (Missing Shift OUT)"
+        working_hours_str = "(Missing Shift OUT)" # 'Incomplete' removed as requested
         issue_type = "Mispunch"
         
         if is_last_punch_an_in and total_punches % 2 == 0:
@@ -247,11 +247,12 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration settings
+    # Column configuration settings for tight compact spacing
     column_config_settings = {
         "Repeated Offender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
-            width="medium"  # Width set to medium so full title & value are clearly visible
+            width="small",
+            format="%d"
         ),
         "Total Punches": st.column_config.NumberColumn(
             "Total\nPunches", 
@@ -259,7 +260,7 @@ if uploaded_file is not None:
         ),
         "No. of Working Hours": st.column_config.TextColumn(
             "No. of\nWorking Hours", 
-            width="medium"
+            width="small"
         ),
         "Status": st.column_config.TextColumn(
             "Status", 
