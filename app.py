@@ -1,68 +1,117 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
 
-st.title("📊 Attendance Mispunch Detection System")
-st.write("Apni attendance Excel file upload karein taake Mispunches (Missing IN/OUT) auto-detect ho sakein.")
+st.title("📊 Attendance Mispunch Detection & Automation System")
+st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, aur Duplicate Scans auto-detect ho sakein.")
 
-uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx", "xls", "csv"])
+uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
 
-def process_attendance(df):
-    # Punch columns list
-    punch_cols = [col for col in df.columns if 'punch' in col.lower()]
+def parse_time(time_val):
+    if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
+        return None
+    time_str = str(time_val).strip()
+    for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%I:%M%p"]:
+        try:
+            return datetime.strptime(time_str, fmt).time()
+        except ValueError:
+            continue
+    return None
+
+def analyze_mispunches(row, punch_cols):
+    punches = []
+    for col in punch_cols:
+        val = parse_time(row[col])
+        if val is not None:
+            punches.append(val)
+            
+    total_punches = len(punches)
     
-    # 1. Total Punches Count
-    df['Total_Punches'] = df[punch_cols].notna().sum(axis=1)
+    status = "OK"
+    category = "Complete"
+    action = "-"
     
-    # 2. Mispunch Logic (Odd counts = Mispunch, Even = Complete)
-    df['Status'] = np.where(df['Total_Punches'] % 2 != 0, 'Mispunch (Missing IN/OUT)', 'Complete')
-    
-    # 3. Shift Detection (Based on 1st Punch)
-    if len(punch_cols) > 0:
-        first_punch = pd.to_datetime(df[punch_cols[0]], errors='coerce')
-        hour = first_punch.dt.hour
+    # 1. Duplicate Scans (7+ Punches)
+    if total_punches in [7, 8, 9, 10]:
+        status = "Error"
+        category = "Duplicate / Extra Scans"
+        action = f"Review Extra Scans ({total_punches} Punches)"
         
-        # Day Shift: 8 AM to 6 PM (8-18), Night Shift: 6 PM to 4 AM
-        df['Shift_Type'] = np.where((hour >= 8) & (hour < 18), 'Day Shift', 'Night Shift')
-    
-    return df
+    # 2. Odd Punch Cases (Mispunches)
+    elif total_punches % 2 != 0:
+        status = "Error"
+        if total_punches == 1:
+            category = "Single Scan Only"
+            action = "Check Shift IN / OUT"
+            
+        elif total_punches == 3:
+            category = "Missing Break / Shift IN (3 Punches)"
+            p1 = punches[0]
+            if 10 <= p1.hour < 12:
+                action = "Missing Shift Start (Suggested: 08:00 AM)"
+            elif 20 <= p1.hour < 23:
+                action = "Missing Shift Start (Suggested: 18:00 PM)"
+            else:
+                action = f"Missing Break Return after {punches[1].strftime('%H:%M')}"
+                
+        elif total_punches == 5:
+            category = "Missing Break Return (5 Punches)"
+            action = f"30-min Break Return missing after {punches[3].strftime('%H:%M')}"
+            
+    return pd.Series([total_punches, status, category, action])
 
 if uploaded_file is not None:
-    try:
-        if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-            
-        st.success("File Successfully Uploaded!")
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
         
-        # Process Data
-        processed_df = process_attendance(df)
+    col_names = df.columns.tolist()
+    
+    # Standard format: First 4 columns are metadata (ID, Name, Manager, Shift/Location)
+    id_col = col_names[0]
+    name_col = col_names[1]
+    manager_col = col_names[2]
+    shift_col = col_names[3]
+    punch_cols = col_names[4:]
+    
+    st.subheader("📋 Processing Summary & Live Analysis")
+    
+    analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
+    analysis_df.columns = ['Total Punches', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time']
+    
+    final_df = pd.concat([df[[id_col, name_col, manager_col, shift_col]], analysis_df, df[punch_cols]], axis=1)
+    
+    mispunches_df = final_df[final_df['Status'] == "Error"]
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Records Processed", len(final_df))
+    col2.metric("Clean Records (No Issue)", len(final_df) - len(mispunches_df))
+    col3.metric("Mispunches Detected", len(mispunches_df))
+    
+    st.markdown("---")
+    st.subheader("⚠️ Mispunches & Action Required List")
+    
+    if len(mispunches_df) > 0:
+        st.dataframe(mispunches_df, use_container_width=True)
         
-        # Display Mispunch Summary
-        mispunch_count = len(processed_df[processed_df['Status'].str.contains('Mispunch')])
-        total_records = len(processed_df)
-        
-        col1, col2 = st.columns(2)
-        col1.metric("Total Records", total_records)
-        col2.metric("Total Mispunches Detected", mispunch_count, delta_color="inverse")
-        
-        st.subheader("📋 Processed Data Preview")
-        st.dataframe(processed_df.head(10))
-        
-        # Export to Excel
-        output_name = "Processed_Attendance.xlsx"
-        processed_df.to_excel(output_name, index=False)
-        
-        with open(output_name, "rb") as file:
-            st.download_button(
-                label="📥 Download Processed Excel File",
-                data=file,
-                file_name=output_name,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
+        # Download Option
+        @st.cache_data
+        def convert_df(df_to_export):
+            import io
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                df_to_export.to_excel(writer, index=False, sheet_name='MisPunch Summary')
+            return buffer.getvalue()
+
+        excel_data = convert_df(final_df)
+        st.download_button(
+            label="📥 Download Clean / Refined Excel File",
+            data=excel_data,
+            file_name="Refined_Mispunch_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.success("🎉 Mispunch nahi mila! Sabhi records complete hain.")
