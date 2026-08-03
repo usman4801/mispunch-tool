@@ -251,7 +251,7 @@ if uploaded_file is not None:
     column_config_settings = {
         "Repeated Offender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
-            width="small"
+            width="medium"  # Width set to medium so full title & value are clearly visible
         ),
         "Total Punches": st.column_config.NumberColumn(
             "Total\nPunches", 
@@ -259,7 +259,7 @@ if uploaded_file is not None:
         ),
         "No. of Working Hours": st.column_config.TextColumn(
             "No. of\nWorking Hours", 
-            width="medium"  # Width increased to medium so full text is visible
+            width="medium"
         ),
         "Status": st.column_config.TextColumn(
             "Status", 
