@@ -74,12 +74,11 @@ def analyze_mispunches(row, punch_cols):
     
     # Calculate Working Hours (First Punch to Last Punch)
     if total_punches >= 2:
-        # Dummy date combine karke duration nikala hai (Overnight shift handling included)
         dummy_date = datetime(2026, 1, 1)
         start_dt = datetime.combine(dummy_date, punches[0])
         end_dt = datetime.combine(dummy_date, punches[-1])
         
-        # Night shift validation (Agar End time, Start time se chota ho)
+        # Overnight shift handling
         if end_dt < start_dt:
             end_dt += timedelta(days=1)
             
@@ -91,20 +90,22 @@ def analyze_mispunches(row, punch_cols):
         
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        # Rules: 8 hours 45 mins = 31500 seconds | 9 hours 10 mins = 33000 seconds
-        min_allowed_seconds = (8 * 3600) + (45 * 60) # 31500 secs
-        max_allowed_seconds = (9 * 3600) + (10 * 60) # 33000 secs
+        # New Time Rules:
+        # 8 hours 50 mins = 31,800 seconds
+        # 9 hours 20 mins = 33,600 seconds
+        min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 secs
+        max_allowed_seconds = (9 * 3600) + (20 * 60) # 33600 secs
         
-        # Rule check agar doosra mispunch error pehle se na lag raha ho
+        # Rule check agar standard mispunch (odd punches) na ho
         if total_punches % 2 == 0 and total_punches < 7:
             if total_seconds < min_allowed_seconds:
                 status = "Error"
-                category = "Short Working Hours (< 08:45)"
-                action = f"Working time ({working_hours_str}) is less than 8h 45m"
+                category = "Short Working Hours (< 08:50)"
+                action = f"Working time ({working_hours_str}) is less than 8h 50m"
             elif total_seconds > max_allowed_seconds:
                 status = "Error"
-                category = "Overtime / Excessive Hours (> 09:10)"
-                action = f"Working time ({working_hours_str}) is more than 9h 10m"
+                category = "Overtime / Excessive Hours (> 09:20)"
+                action = f"Working time ({working_hours_str}) is more than 9h 20m"
 
     # 1. Duplicate Scans (7+ Punches)
     if total_punches in [7, 8, 9, 10]:
