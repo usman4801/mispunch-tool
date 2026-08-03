@@ -33,7 +33,6 @@ try:
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
-        /* Styling Radio Buttons like Pills/Tabs */
         div[data-testid="stRadioButton"] > div {{
             flex-direction: row;
             gap: 15px;
@@ -163,10 +162,9 @@ if uploaded_file is not None:
         
     col_names = df.columns.tolist()
     
+    # Sirf pehle 2 main identifier columns rakhenge (e.g., ID aur Employee Name)
     id_col = col_names[0]
     name_col = col_names[1]
-    manager_col = col_names[2]
-    shift_col = col_names[3]
     punch_cols = col_names[4:]
     
     st.subheader("📋 Processing Summary & Live Analysis")
@@ -174,7 +172,8 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
-    final_df = pd.concat([df[[id_col, name_col, manager_col, shift_col]], analysis_df, df[punch_cols]], axis=1)
+    # Column 2 aur Column 3 (Unnamed: 2, Unnamed: 3) yahan ignore kar diye gaye hain
+    final_df = pd.concat([df[[id_col, name_col]], analysis_df, df[punch_cols]], axis=1)
     
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"]
@@ -189,9 +188,7 @@ if uploaded_file is not None:
     
     st.markdown("---")
     
-    # -------------------------------------------------------------
-    # VIEW SELECTOR BUTTONS (Select List to Display)
-    # -------------------------------------------------------------
+    # VIEW SELECTOR BUTTONS
     view_option = st.radio(
         "🔎 **Select List View to Inspect:**",
         options=[
@@ -204,7 +201,7 @@ if uploaded_file is not None:
     
     st.markdown("---")
 
-    # DISPLAY LIST BASED ON CLICKED OPTION
+    # DISPLAY LIST BASED ON SELECTION
     if "Defaulter Hours" in view_option:
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
@@ -227,7 +224,7 @@ if uploaded_file is not None:
 
     st.markdown("---")
     
-    # Download Button
+    # Download Option
     @st.cache_data
     def convert_df(df_to_export):
         import io
