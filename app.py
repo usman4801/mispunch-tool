@@ -43,13 +43,16 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
-        /* Disable column resize handles & enable multiline header wrapping */
-        div[data-testid="stDataFrame"] iframe, div[data-testid="stDataFrame"] {{
-            pointer-events: auto;
+        /* Freeze Table Styles - No resizing allowed */
+        table {{
+            width: 100% !important;
+            table-layout: fixed !important;
         }}
-        div[data-testid="stDataFrame"] th {{
-            white-space: pre-wrap !important;
+        th, td {{
+            text-align: center !important;
+            white-space: normal !important;
             word-wrap: break-word !important;
+            font-size: 13px !important;
         }}
         </style>
         """,
@@ -94,7 +97,6 @@ def analyze_mispunches(row, punch_cols):
     
     status = "OK"
     category = "Complete"
-    action = "-"
     working_hours_str = "N/A"
     issue_type = "Clean"
     
@@ -113,32 +115,20 @@ def analyze_mispunches(row, punch_cols):
         
         if is_last_punch_an_in and total_punches % 2 == 0:
             category = "Shift END is IN (Missing Shift OUT)"
-            action = f"Last scan {punches[-1].strftime('%H:%M')} is IN instead of OUT"
         elif total_punches == 1:
             category = "Single Scan Only"
-            action = "Missing Shift OUT or Shift IN"
         elif total_punches == 3:
             category = "Missing Break / Shift IN (3 Punches)"
-            p1 = punches[0]
-            if 10 <= p1.hour < 12:
-                action = "Missing Shift Start (Suggested: 08:00 AM)"
-            elif 20 <= p1.hour < 23:
-                action = "Missing Shift Start (Suggested: 18:00 PM)"
-            else:
-                action = f"Missing Break Return after {punches[1].strftime('%H:%M')}"
         elif total_punches == 5:
             category = "Missing Break Return (5 Punches)"
-            action = f"Break Return missing after {punches[3].strftime('%H:%M')}"
         else:
             category = f"Missing Scan ({total_punches} Punches)"
-            action = f"Check sequence after {punches[-1].strftime('%H:%M')}"
 
     # CASE 2: EXTRA PUNCHES (7 or More Punches)
     elif total_punches >= 7:
         status = "Error"
         working_hours_str = "N/A (Extra Scans)"
         category = "Extra Punches"
-        action = f"Review Extra Scans ({total_punches} Punches)"
         issue_type = "Mispunch"
 
     # CASE 3: VALID EVEN PAIRS
@@ -166,20 +156,17 @@ def analyze_mispunches(row, punch_cols):
         if total_seconds < min_allowed_seconds:
             status = "Error"
             category = "Short Working Hours (< 08:50)"
-            action = f"Net working time ({working_hours_str}) is less than 8h 50m"
             issue_type = "Defaulter Hours"
         elif total_seconds > max_allowed_seconds:
             status = "Error"
             category = "Overtime / Excessive Hours (> 09:10)"
-            action = f"Net working time ({working_hours_str}) is more than 9h 10m"
             issue_type = "Defaulter Hours"
         else:
             status = "OK"
             category = "Complete"
-            action = "-"
             issue_type = "Clean"
 
-    return pd.Series([total_punches, working_hours_str, status, category, action, issue_type])
+    return pd.Series([total_punches, working_hours_str, status, category, issue_type])
 
 if uploaded_file is not None:
     if uploaded_file.name.endswith('.csv'):
@@ -196,7 +183,7 @@ if uploaded_file is not None:
     st.subheader("📋 Processing Summary & Live Analysis")
     
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
-    analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
+    analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
     # Safe header renaming (IN / OUT) and Clean HH:MM Time Formatting
     renamed_punch_cols = {}
@@ -220,8 +207,12 @@ if uploaded_file is not None:
     # Merge Clean Table
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
     
-    # Rearrange columns so 'Repeated Offender' appears next to Name/Analysis
-    cols_order = ['P.Soft ID', 'Employee Name', 'Repeated Offender', 'Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type'] + list(punches_df_cleaned.columns)
+    # Rearrange columns without 'Suggested Missing Action / Time'
+    cols_order = (
+        ['P.Soft ID', 'Employee Name', 'Repeated Offender', 'No. of Working Hours', 'Mispunch Category', 'Issue Type'] 
+        + list(punches_df_cleaned.columns) 
+        + ['Total Punches', 'Status']
+    )
     final_df = final_df[cols_order]
 
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
@@ -259,29 +250,12 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration with explicit 2-line labels & compact widths
-    column_config_settings = {
-        "Repeated Offender": st.column_config.NumberColumn(
-            "Repeated\nOffender", 
-            width="small",
-            help="Number of occurrences"
-        ),
-        "Total Punches": st.column_config.NumberColumn(
-            "Total\nPunches", 
-            width="small"
-        ),
-        "No. of Working Hours": st.column_config.TextColumn(
-            "No. of\nWorking Hours", 
-            width="small"
-        )
-    }
-
-    # DISPLAY LIST BASED ON CLICKED CARD / SELECTION
+    # DISPLAY LIST BASED ON CLICKED CARD / SELECTION (Using st.table for completely frozen layout)
     if st.session_state.selected_view == "defaulters":
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
         if len(defaulter_hours_only) > 0:
-            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+            st.table(defaulter_hours_only.drop(columns=['Issue Type']))
         else:
             st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
 
@@ -289,18 +263,18 @@ if uploaded_file is not None:
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
         st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
-            st.dataframe(mispunches_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+            st.table(mispunches_only.drop(columns=['Issue Type']))
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
 
     elif st.session_state.selected_view == "clean":
         st.subheader(f"✅ Clean Employee Records ({len(clean_records_only)} Records)")
         st.caption("Pura time aur exact punches wale perfect records:")
-        st.dataframe(clean_records_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+        st.table(clean_records_only.drop(columns=['Issue Type']))
 
     else:
         st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
-        st.dataframe(final_df.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+        st.table(final_df.drop(columns=['Issue Type']))
 
     st.markdown("---")
     
