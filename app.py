@@ -12,7 +12,6 @@ def get_base64_of_bin_file(bin_file):
         data = f.read()
     return base64.b64encode(data).decode()
 
-# GitHub screenshot ke mutabiq aapki file ka exact name 'bg.jpeg.jpeg' hai
 image_filename = 'bg.jpeg.jpeg'
 
 try:
@@ -72,31 +71,40 @@ def analyze_mispunches(row, punch_cols):
     action = "-"
     working_hours_str = "N/A"
     
-    # Calculate Working Hours (First Punch to Last Punch)
+    # Calculate Net Working Hours (Subtracting Breaks if even number of punches exist)
     if total_punches >= 2:
         dummy_date = datetime(2026, 1, 1)
-        start_dt = datetime.combine(dummy_date, punches[0])
-        end_dt = datetime.combine(dummy_date, punches[-1])
+        total_seconds = 0
         
-        # Overnight shift handling
-        if end_dt < start_dt:
-            end_dt += timedelta(days=1)
-            
-        time_diff = end_dt - start_dt
-        total_seconds = time_diff.total_seconds()
+        # Pairs mein time difference add karenge (e.g. 1-to-2 and 3-to-4)
+        if total_punches % 2 == 0:
+            for i in range(0, total_punches, 2):
+                start_dt = datetime.combine(dummy_date, punches[i])
+                end_dt = datetime.combine(dummy_date, punches[i+1])
+                
+                # Overnight shift handling
+                if end_dt < start_dt:
+                    end_dt += timedelta(days=1)
+                
+                total_seconds += (end_dt - start_dt).total_seconds()
+        else:
+            # Odd punches case: First to Last duration (just for reference)
+            start_dt = datetime.combine(dummy_date, punches[0])
+            end_dt = datetime.combine(dummy_date, punches[-1])
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            total_seconds = (end_dt - start_dt).total_seconds()
         
         hours = int(total_seconds // 3600)
         minutes = int((total_seconds % 3600) // 60)
         
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        # New Time Rules:
-        # 8 hours 50 mins = 31,800 seconds
-        # 9 hours 20 mins = 33,600 seconds
-        min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 secs
-        max_allowed_seconds = (9 * 3600) + (20 * 60) # 33600 secs
+        # Rules (8h 50m = 31800 sec | 9h 20m = 33600 sec)
+        min_allowed_seconds = (8 * 3600) + (50 * 60)
+        max_allowed_seconds = (9 * 3600) + (20 * 60)
         
-        # Rule check agar standard mispunch (odd punches) na ho
+        # Standard validation for complete shift (Even punches < 7)
         if total_punches % 2 == 0 and total_punches < 7:
             if total_seconds < min_allowed_seconds:
                 status = "Error"
@@ -144,7 +152,6 @@ if uploaded_file is not None:
         
     col_names = df.columns.tolist()
     
-    # Standard format: First 4 columns are metadata (ID, Name, Manager, Shift/Location)
     id_col = col_names[0]
     name_col = col_names[1]
     manager_col = col_names[2]
