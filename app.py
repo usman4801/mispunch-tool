@@ -43,16 +43,13 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
-        /* Freeze Table Styles - No resizing allowed */
-        table {{
-            width: 100% !important;
-            table-layout: fixed !important;
-        }}
-        th, td {{
-            text-align: center !important;
-            white-space: normal !important;
+        /* Freeze column resizing handles while keeping compact look */
+        div[data-testid="stDataFrame"] th {{
+            white-space: pre-wrap !important;
             word-wrap: break-word !important;
-            font-size: 13px !important;
+        }}
+        div[data-testid="stDataFrame"] [data-testid="stDataFrameResizable"] {{
+            pointer-events: none !important;
         }}
         </style>
         """,
@@ -250,12 +247,32 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # DISPLAY LIST BASED ON CLICKED CARD / SELECTION (Using st.table for completely frozen layout)
+    # Column configuration for compact size
+    column_config_settings = {
+        "Repeated Offender": st.column_config.NumberColumn(
+            "Repeated\nOffender", 
+            width="small"
+        ),
+        "Total Punches": st.column_config.NumberColumn(
+            "Total\nPunches", 
+            width="small"
+        ),
+        "No. of Working Hours": st.column_config.TextColumn(
+            "No. of\nWorking Hours", 
+            width="small"
+        ),
+        "Status": st.column_config.TextColumn(
+            "Status", 
+            width="small"
+        )
+    }
+
+    # DISPLAY LIST BASED ON CLICKED CARD / SELECTION
     if st.session_state.selected_view == "defaulters":
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
         if len(defaulter_hours_only) > 0:
-            st.table(defaulter_hours_only.drop(columns=['Issue Type']))
+            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
 
@@ -263,18 +280,18 @@ if uploaded_file is not None:
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
         st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
-            st.table(mispunches_only.drop(columns=['Issue Type']))
+            st.dataframe(mispunches_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
 
     elif st.session_state.selected_view == "clean":
         st.subheader(f"✅ Clean Employee Records ({len(clean_records_only)} Records)")
         st.caption("Pura time aur exact punches wale perfect records:")
-        st.table(clean_records_only.drop(columns=['Issue Type']))
+        st.dataframe(clean_records_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
 
     else:
         st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
-        st.table(final_df.drop(columns=['Issue Type']))
+        st.dataframe(final_df.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
 
     st.markdown("---")
     
