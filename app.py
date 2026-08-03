@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 
-# Page Config & Hide Unwanted Traceback Errors
+# Page Config
 st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
 
 # Function to encode JPEG image file
@@ -33,6 +33,20 @@ try:
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
+        
+        /* WAREHOUSE BOX CUSTOM STYLING (MATCHING IMAGE) */
+        div[data-baseweb="select"] {{
+            border: 2px solid #000000 !important;
+            border-radius: 6px !important;
+            background-color: #ffffff !important;
+            font-weight: bold !important;
+        }}
+        div[data-testid="stSelectbox"] label p {{
+            font-size: 18px !important;
+            font-weight: 800 !important;
+            color: #000000 !important;
+        }}
+
         div[data-testid="stRadioButton"] > div {{
             flex-direction: row;
             gap: 15px;
@@ -43,7 +57,6 @@ try:
             border-radius: 8px;
             border: 1px solid #e9ecef;
         }}
-        /* Enable multiline header text wrapping and smooth horizontal scrolling */
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
@@ -57,6 +70,22 @@ except Exception:
 
 # Main UI Header
 st.title("📊 Attendance Mispunch & Working Hours Detection System")
+
+st.markdown("---")
+
+# -------------------------------------------------------------
+# DUMMY WAREHOUSE BOX (JUST FOR LOOKS / NO LOGIC CHANGE)
+# -------------------------------------------------------------
+col_wh, col_space = st.columns([1.5, 8.5])
+
+with col_wh:
+    selected_warehouse = st.selectbox(
+        "Warehouse",
+        options=["AUH1", "DXB5", "DXB3"],
+        index=0
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
 
@@ -94,14 +123,12 @@ def analyze_mispunches(row, punch_cols):
     working_hours_str = "N/A"
     issue_type = "Clean"
     
-    # Check if last punch was logged at an IN column
     is_last_punch_an_in = False
     if total_punches > 0:
         last_punch_col_index = actual_punch_positions[-1]
-        if last_punch_col_index % 2 == 0:  # 0, 2, 4 are IN columns
+        if last_punch_col_index % 2 == 0:
             is_last_punch_an_in = True
 
-    # CASE 1: MISSING PUNCHES OR LAST PUNCH IS IN
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
         working_hours_str = "N/A"
@@ -118,14 +145,12 @@ def analyze_mispunches(row, punch_cols):
         else:
             category = f"Missing Scan ({total_punches} Punches)"
 
-    # CASE 2: EXTRA PUNCHES (7 or More Punches)
     elif total_punches >= 7:
         status = "Error"
         working_hours_str = "N/A"
         category = "Extra Punches"
         issue_type = "Mispunch"
 
-    # CASE 3: VALID EVEN PAIRS
     elif total_punches in [2, 4, 6]:
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
@@ -144,8 +169,8 @@ def analyze_mispunches(row, punch_cols):
         
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 sec
-        max_allowed_seconds = (9 * 3600) + (10 * 60) # 33000 sec
+        min_allowed_seconds = (8 * 3600) + (50 * 60)
+        max_allowed_seconds = (9 * 3600) + (10 * 60)
         
         if total_seconds < min_allowed_seconds:
             status = "Error"
@@ -179,7 +204,6 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
-    # Safe header renaming (IN / OUT) and Clean HH:MM Time Formatting
     renamed_punch_cols = {}
     punches_df_cleaned = pd.DataFrame()
     
@@ -191,17 +215,13 @@ if uploaded_file is not None:
         renamed_punch_cols[col] = col_label
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # ID aur Name Columns
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
-    # REPEATED OFFENDER NUMBER COUNTER
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
-    # Merge Clean Table
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
     
-    # Rearrange columns
     cols_order = (
         ['P.Soft ID', 'Employee Name', 'Repeated\nOffender', 'No. of\nWorking Hours', 'Mispunch Category', 'Issue Type'] 
         + list(punches_df_cleaned.columns) 
@@ -215,11 +235,9 @@ if uploaded_file is not None:
     
     total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
-    # Initialize Session State for Active View Filter
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
-    # TOP INTERACTIVE CARDS (CLICK TO FILTER)
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -244,7 +262,6 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # Column configuration with flexible widths
     column_config_settings = {
         "Repeated\nOffender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
@@ -265,7 +282,6 @@ if uploaded_file is not None:
         )
     }
 
-    # DISPLAY LIST BASED ON CLICKED CARD / SELECTION
     if st.session_state.selected_view == "defaulters":
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
@@ -278,7 +294,6 @@ if uploaded_file is not None:
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
         st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
-            # Dropping 'No. of\nWorking Hours' specifically for mispunches section
             mispunch_display_df = mispunches_only.drop(columns=['Issue Type', 'No. of\nWorking Hours'])
             st.dataframe(mispunch_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
         else:
@@ -295,7 +310,6 @@ if uploaded_file is not None:
 
     st.markdown("---")
     
-    # Safe Download Option (Standard pandas engine)
     @st.cache_data
     def convert_df(df_to_export):
         import io
