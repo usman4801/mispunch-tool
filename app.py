@@ -46,7 +46,6 @@ except Exception as e:
 
 # Main UI Header
 st.title("📊 Attendance Mispunch & Working Hours Detection System")
-st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, Extra Scans, aur Defaulter Hours auto-detect ho sakein.")
 
 uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
 
