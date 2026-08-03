@@ -1,9 +1,38 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import base64
 
+# Page Config
 st.set_page_config(page_title="Attendance Mispunch Automation Tool", layout="wide")
 
+# Function to set background image
+def set_bg(main_bg):
+    with open(main_bg, "rb") as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode()
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{b64}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Background apply karein (Note: Apni image ka naam 'bg.jpg' hi rakhein, agar alag hai toh yahan change kar lein)
+try:
+    set_bg('bg.jpg')
+except Exception:
+    pass
+
+# Main UI Header
 st.title("📊 Attendance Mispunch Detection & Automation System")
 st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, aur Duplicate Scans auto-detect ho sakein.")
 
