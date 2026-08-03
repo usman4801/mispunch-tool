@@ -132,9 +132,9 @@ def analyze_mispunches(row, punch_cols):
         
         # Time Rules:
         # 8 hours 50 mins = 31,800 seconds
-        # 9 hours 20 mins = 33,600 seconds
+        # 9 hours 10 mins = 33,000 seconds
         min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 sec
-        max_allowed_seconds = (9 * 3600) + (20 * 60) # 33600 sec
+        max_allowed_seconds = (9 * 3600) + (10 * 60) # 33000 sec
         
         if total_seconds < min_allowed_seconds:
             status = "Error"
@@ -142,8 +142,8 @@ def analyze_mispunches(row, punch_cols):
             action = f"Net working time ({working_hours_str}) is less than 8h 50m"
         elif total_seconds > max_allowed_seconds:
             status = "Error"
-            category = "Overtime / Excessive Hours (> 09:20)"
-            action = f"Net working time ({working_hours_str}) is more than 9h 20m"
+            category = "Overtime / Excessive Hours (> 09:10)"
+            action = f"Net working time ({working_hours_str}) is more than 9h 10m"
 
     return pd.Series([total_punches, working_hours_str, status, category, action])
 
