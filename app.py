@@ -41,8 +41,8 @@ except Exception as e:
     st.error(f"Background image load nahi ho saki: {e}")
 
 # Main UI Header
-st.title("📊 Attendance Mispunch Detection & Automation System")
-st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, Duplicate Scans, aur Shift Hours auto-detect ho sakein.")
+st.title("📊 Attendance Mispunch & Working Hours Detection System")
+st.write("Apni attendance Excel/CSV file upload karein taake Mispunches, Missing Breaks, Extra Scans, aur Defaulter Hours auto-detect ho sakein.")
 
 uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
 
@@ -70,6 +70,7 @@ def analyze_mispunches(row, punch_cols):
     category = "Complete"
     action = "-"
     working_hours_str = "N/A"
+    issue_type = "Clean" # 'Mispunch', 'Defaulter Hours', or 'Clean'
     
     # -------------------------------------------------------------
     # CASE 1: MISSING PUNCHES (Odd Punches: 1, 3, 5)
@@ -77,6 +78,7 @@ def analyze_mispunches(row, punch_cols):
     if total_punches % 2 != 0:
         status = "Error"
         working_hours_str = "Incomplete (Missing Punch)"
+        issue_type = "Mispunch"
         
         if total_punches == 1:
             category = "Single Scan Only"
@@ -104,21 +106,20 @@ def analyze_mispunches(row, punch_cols):
         working_hours_str = "N/A (Extra Scans)"
         category = "Extra Punches"
         action = f"Review Extra Scans ({total_punches} Punches)"
+        issue_type = "Mispunch"
 
     # -------------------------------------------------------------
     # CASE 3: COMPLETE PAIRS (2, 4, 6 Punches)
-    # Shift timing chahay kuch bhi ho, agar Net Hours poore hain toh OK
+    # Check for Defaulter Working Hours
     # -------------------------------------------------------------
     elif total_punches in [2, 4, 6]:
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
         
-        # Pairs mein net work calculate karenge (e.g. 1-to-2, 3-to-4, 5-to-6)
         for i in range(0, total_punches, 2):
             start_dt = datetime.combine(dummy_date, punches[i])
             end_dt = datetime.combine(dummy_date, punches[i+1])
             
-            # Overnight shift handling
             if end_dt < start_dt:
                 end_dt += timedelta(days=1)
             
@@ -129,9 +130,6 @@ def analyze_mispunches(row, punch_cols):
         
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        # Working Hours Allowed Limits:
-        # 8 hours 50 mins = 31,800 seconds
-        # 9 hours 10 mins = 33,000 seconds
         min_allowed_seconds = (8 * 3600) + (50 * 60) # 31800 sec
         max_allowed_seconds = (9 * 3600) + (10 * 60) # 33000 sec
         
@@ -139,16 +137,19 @@ def analyze_mispunches(row, punch_cols):
             status = "Error"
             category = "Short Working Hours (< 08:50)"
             action = f"Net working time ({working_hours_str}) is less than 8h 50m"
+            issue_type = "Defaulter Hours"
         elif total_seconds > max_allowed_seconds:
             status = "Error"
             category = "Overtime / Excessive Hours (> 09:10)"
             action = f"Net working time ({working_hours_str}) is more than 9h 10m"
+            issue_type = "Defaulter Hours"
         else:
             status = "OK"
             category = "Complete"
             action = "-"
+            issue_type = "Clean"
 
-    return pd.Series([total_punches, working_hours_str, status, category, action])
+    return pd.Series([total_punches, working_hours_str, status, category, action, issue_type])
 
 if uploaded_file is not None:
     if uploaded_file.name.endswith('.csv'):
@@ -167,38 +168,64 @@ if uploaded_file is not None:
     st.subheader("📋 Processing Summary & Live Analysis")
     
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
-    analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time']
+    analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
     final_df = pd.concat([df[[id_col, name_col, manager_col, shift_col]], analysis_df, df[punch_cols]], axis=1)
     
-    mispunches_df = final_df[final_df['Status'] == "Error"]
+    mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"]
+    defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"]
+    total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Records Processed", len(final_df))
-    col2.metric("Clean Records (No Issue)", len(final_df) - len(mispunches_df))
-    col3.metric("Mispunches Detected", len(mispunches_df))
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Records", len(final_df))
+    col2.metric("Clean Records", len(final_df) - total_errors)
+    col3.metric("Mispunches", len(mispunches_only))
+    col4.metric("Defaulter Hours", len(defaulter_hours_only))
     
     st.markdown("---")
-    st.subheader("⚠️ Mispunches & Action Required List")
     
-    if len(mispunches_df) > 0:
-        st.dataframe(mispunches_df, use_container_width=True)
-        
-        # Download Option
-        @st.cache_data
-        def convert_df(df_to_export):
-            import io
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df_to_export.to_excel(writer, index=False, sheet_name='MisPunch Summary')
-            return buffer.getvalue()
-
-        excel_data = convert_df(final_df)
-        st.download_button(
-            label="📥 Download Clean / Refined Excel File",
-            data=excel_data,
-            file_name="Refined_Mispunch_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    # -------------------------------------------------------------
+    # DEFAULT VIEW: MISPUNCHES & EXTRA PUNCHES LIST
+    # -------------------------------------------------------------
+    st.subheader("⚠️ Missing & Extra Punches List")
+    if len(mispunches_only) > 0:
+        st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True)
     else:
-        st.success("🎉 Mispunch nahi mila! Sabhi records complete hain.")
+        st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
+
+    st.markdown("---")
+    
+    # -------------------------------------------------------------
+    # BUTTON TO SHOW DEFAULTER HOURS LIST
+    # -------------------------------------------------------------
+    show_hours = st.checkbox("⏰ Show Defaulter Hours List (< 08:50 or > 09:10)", value=False)
+    
+    if show_hours:
+        st.subheader("⏰ Defaulter Working Hours List")
+        if len(defaulter_hours_only) > 0:
+            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), use_container_width=True)
+        else:
+            st.info("🎉 Koi Defaulter Working Hours wala record nahi mila!")
+
+    st.markdown("---")
+    
+    # -------------------------------------------------------------
+    # EXPORT / DOWNLOAD OPTION
+    # -------------------------------------------------------------
+    @st.cache_data
+    def convert_df(df_to_export):
+        import io
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
+            mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
+            defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
+        return buffer.getvalue()
+
+    excel_data = convert_df(final_df)
+    st.download_button(
+        label="📥 Download Complete Refined Excel File",
+        data=excel_data,
+        file_name="Refined_Attendance_Report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
