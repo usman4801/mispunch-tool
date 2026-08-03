@@ -37,6 +37,12 @@ try:
             flex-direction: row;
             gap: 15px;
         }}
+        div[data-testid="stMetric"] {{
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -60,9 +66,14 @@ def parse_time(time_val):
             continue
     return None
 
+def format_time_clean(time_val):
+    t = parse_time(time_val)
+    if t is not None:
+        return t.strftime("%H:%M")
+    return ""
+
 def analyze_mispunches(row, punch_cols):
     punches = []
-    # Identify which columns actually contain valid non-empty punches
     actual_punch_positions = []
     
     for idx, col in enumerate(punch_cols):
@@ -79,17 +90,14 @@ def analyze_mispunches(row, punch_cols):
     working_hours_str = "N/A"
     issue_type = "Clean"
     
-    # -------------------------------------------------------------
-    # SPECIFIC CHECK: LAST SCAN PAR OUT MISSING (IN POSITION PAR HAIN)
-    # -------------------------------------------------------------
-    # Agar aakhri punch kisi Odd index wali location (IN column) par aya hai
+    # Check if last punch was logged at an IN column
     is_last_punch_an_in = False
     if total_punches > 0:
         last_punch_col_index = actual_punch_positions[-1]
         if last_punch_col_index % 2 == 0:  # 0, 2, 4 are IN columns
             is_last_punch_an_in = True
 
-    # CASE 1: MISSING PUNCHES (Odd Punches: 1, 3, 5) OR LAST PUNCH IS IN
+    # CASE 1: MISSING PUNCHES OR LAST PUNCH IS IN
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
         working_hours_str = "Incomplete (Missing Shift OUT)"
@@ -125,7 +133,7 @@ def analyze_mispunches(row, punch_cols):
         action = f"Review Extra Scans ({total_punches} Punches)"
         issue_type = "Mispunch"
 
-    # CASE 3: VALID EVEN PAIRS (2, 4, 6 Punches where Last Scan is OUT)
+    # CASE 3: VALID EVEN PAIRS
     elif total_punches in [2, 4, 6]:
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
@@ -182,54 +190,62 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of Working Hours', 'Status', 'Mispunch Category', 'Suggested Missing Action / Time', 'Issue Type']
     
-    # Safe header renaming (IN / OUT)
+    # Safe header renaming (IN / OUT) and Clean HH:MM Time Formatting
     renamed_punch_cols = {}
+    punches_df_cleaned = pd.DataFrame()
+    
     for idx, col in enumerate(punch_cols):
         pair_num = (idx // 2) + 1
         label = "IN" if idx % 2 == 0 else "OUT"
-        if pair_num == 1:
-            renamed_punch_cols[col] = label
-        else:
-            renamed_punch_cols[col] = f"{label} ({pair_num})"
-            
-    punches_df_renamed = df[punch_cols].rename(columns=renamed_punch_cols)
+        col_label = label if pair_num == 1 else f"{label} ({pair_num})"
+        
+        renamed_punch_cols[col] = col_label
+        punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
     # ID aur Name Columns
     base_info_df = df[[id_col, name_col]].copy()
     base_info_df.columns = ['P.Soft ID', 'Employee Name']
     
     # Merge Clean Table
-    final_df = pd.concat([base_info_df, analysis_df, punches_df_renamed], axis=1)
+    final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
     
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
+    clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
     
     total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
-    # Top Counters
+    # Initialize Session State for Active View Filter
+    if "selected_view" not in st.session_state:
+        st.session_state.selected_view = "mispunches"
+        
+    # TOP INTERACTIVE CARDS (CLICK TO FILTER)
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Records", len(final_df))
-    col2.metric("Clean Records", len(final_df) - total_errors)
-    col3.metric("Mispunches", len(mispunches_only))
-    col4.metric("Defaulter Hours", len(defaulter_hours_only))
     
-    st.markdown("---")
-    
-    # VIEW SELECTOR BUTTONS
-    view_option = st.radio(
-        "🔎 **Select List View to Inspect:**",
-        options=[
-            f"⚠️ Missing & Extra Punches ({len(mispunches_only)})", 
-            f"⏰ Defaulter Hours List ({len(defaulter_hours_only)})",
-            f"📊 All Records ({len(final_df)})"
-        ],
-        index=0
-    )
-    
+    with col1:
+        st.metric("Total Records", len(final_df))
+        if st.button("👁️ View All Records", key="btn_all", use_container_width=True):
+            st.session_state.selected_view = "all"
+            
+    with col2:
+        st.metric("Clean Records", len(clean_records_only))
+        if st.button("👁️ View Clean List", key="btn_clean", use_container_width=True):
+            st.session_state.selected_view = "clean"
+            
+    with col3:
+        st.metric("Mispunches", len(mispunches_only))
+        if st.button("⚠️ View Mispunches", key="btn_mispunch", type="primary", use_container_width=True):
+            st.session_state.selected_view = "mispunches"
+            
+    with col4:
+        st.metric("Defaulter Hours", len(defaulter_hours_only))
+        if st.button("⏰ View Defaulters", key="btn_defaulters", use_container_width=True):
+            st.session_state.selected_view = "defaulters"
+            
     st.markdown("---")
 
-    # DISPLAY LIST BASED ON SELECTION
-    if "Defaulter Hours" in view_option:
+    # DISPLAY LIST BASED ON CLICKED CARD / SELECTION
+    if st.session_state.selected_view == "defaulters":
         st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
         st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
         if len(defaulter_hours_only) > 0:
@@ -237,13 +253,18 @@ if uploaded_file is not None:
         else:
             st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
 
-    elif "Missing & Extra Punches" in view_option:
+    elif st.session_state.selected_view == "mispunches":
         st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
-        st.caption("Missing punches (1, 3, 5) ya Extra Scans (7+) wale employees ki list:")
+        st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
         if len(mispunches_only) > 0:
             st.dataframe(mispunches_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
+
+    elif st.session_state.selected_view == "clean":
+        st.subheader(f"✅ Clean Employee Records ({len(clean_records_only)} Records)")
+        st.caption("Pura time aur exact punches wale perfect records:")
+        st.dataframe(clean_records_only.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
 
     else:
         st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
