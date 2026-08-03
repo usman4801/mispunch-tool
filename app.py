@@ -37,7 +37,7 @@ try:
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
         
-        /* WAREHOUSE BOX CUSTOM STYLING (MATCHING IMAGE) */
+        /* WAREHOUSE BOX CUSTOM STYLING */
         div[data-baseweb="select"] {{
             border: 2px solid #000000 !important;
             border-radius: 6px !important;
@@ -54,15 +54,19 @@ try:
             flex-direction: row;
             gap: 15px;
         }}
-        div[data-testid="stMetric"] {{
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-        }}
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
+        }}
+        
+        /* CLICKABLE CARD BUTTON STYLING */
+        div.stButton > button {{
+            height: 90px !important;
+            border-radius: 10px !important;
+            border: 1px solid #d3d3d3 !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.05) !important;
         }}
         </style>
         """,
@@ -71,13 +75,13 @@ try:
 except Exception:
     pass
 
-# Main UI Header (Updated Tool Name)
+# Main UI Header (Updated Name)
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 
 st.markdown("---")
 
 # -------------------------------------------------------------
-# DUMMY WAREHOUSE BOX (JUST FOR LOOKS / NO LOGIC CHANGE)
+# DUMMY WAREHOUSE BOX (VISUAL ONLY)
 # -------------------------------------------------------------
 col_wh, col_space = st.columns([1.5, 8.5])
 
@@ -236,31 +240,32 @@ if uploaded_file is not None:
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
     
-    total_errors = len(mispunches_only) + len(defaulter_hours_only)
-    
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
+    # -------------------------------------------------------------
+    # DIRECT CLICKABLE METRIC CARDS (NO EXTRA BUTTONS BELOW)
+    # -------------------------------------------------------------
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Records", len(final_df))
-        if st.button("👁️ View All Records", key="btn_all", use_container_width=True):
+        type_all = "primary" if st.session_state.selected_view == "all" else "secondary"
+        if st.button(f"Total Records\n\n{len(final_df)}", key="card_all", type=type_all, use_container_width=True):
             st.session_state.selected_view = "all"
             
     with col2:
-        st.metric("Clean Records", len(clean_records_only))
-        if st.button("👁️ View Clean List", key="btn_clean", use_container_width=True):
+        type_clean = "primary" if st.session_state.selected_view == "clean" else "secondary"
+        if st.button(f"Clean Records\n\n{len(clean_records_only)}", key="card_clean", type=type_clean, use_container_width=True):
             st.session_state.selected_view = "clean"
             
     with col3:
-        st.metric("Mispunches", len(mispunches_only))
-        if st.button("⚠️ View Mispunches", key="btn_mispunch", type="primary", use_container_width=True):
+        type_mispunches = "primary" if st.session_state.selected_view == "mispunches" else "secondary"
+        if st.button(f"Mispunches\n\n{len(mispunches_only)}", key="card_mispunch", type=type_mispunches, use_container_width=True):
             st.session_state.selected_view = "mispunches"
             
     with col4:
-        st.metric("Defaulter Hours", len(defaulter_hours_only))
-        if st.button("⏰ View Defaulters", key="btn_defaulters", use_container_width=True):
+        type_defaulters = "primary" if st.session_state.selected_view == "defaulters" else "secondary"
+        if st.button(f"Defaulter Hours\n\n{len(defaulter_hours_only)}", key="card_defaulters", type=type_defaulters, use_container_width=True):
             st.session_state.selected_view = "defaulters"
             
     st.markdown("---")
