@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 
-# Page Config (Updated Page Title)
+# Page Config
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
     layout="wide"
@@ -22,7 +22,7 @@ try:
     st.markdown(
         f"""
         <style>
-        /* Top Header, Menu & Footer Hide karne ke liye */
+        /* Top Header, Menu & Footer Hide */
         #MainMenu {{visibility: hidden;}}
         header {{visibility: hidden;}}
         footer {{visibility: hidden;}}
@@ -42,7 +42,7 @@ try:
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
         
-        /* WAREHOUSE BOX CUSTOM STYLING (MATCHING IMAGE) */
+        /* WAREHOUSE BOX CUSTOM STYLING */
         div[data-baseweb="select"] {{
             border: 2px solid #000000 !important;
             border-radius: 6px !important;
@@ -66,17 +66,14 @@ try:
 except Exception:
     pass
 
-# Main UI Header (Updated Tool Name)
+# Main UI Header
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 st.markdown("Real-time insights and system performance overview")
 
 st.markdown("---")
 
-# -------------------------------------------------------------
-# DUMMY WAREHOUSE BOX (JUST FOR LOOKS / NO LOGIC CHANGE)
-# -------------------------------------------------------------
+# Warehouse Box
 col_wh, col_space = st.columns([1.5, 8.5])
-
 with col_wh:
     selected_warehouse = st.selectbox(
         "Warehouse",
@@ -232,21 +229,18 @@ if uploaded_file is not None:
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
     
-    total_errors = len(mispunches_only) + len(defaulter_hours_only)
-    
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
-    # --- STYLISH GRADIENT CARDS CSS & LAYOUT ---
+    # --- STYLISH GRADIENT CARDS & MATCHING BUTTONS CSS ---
     st.markdown("""
         <style>
         .metric-card {
             padding: 22px;
-            border-radius: 12px;
+            border-radius: 12px 12px 0 0;
             color: white;
             font-family: sans-serif;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            margin-bottom: 10px;
         }
         .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
         .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
@@ -255,6 +249,18 @@ if uploaded_file is not None:
         
         .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
         .card-value { font-size: 36px; font-weight: 800; }
+
+        /* Custom styling to give buttons matching soft/solid background accents */
+        div[data-testid="stButton"] button {
+            border-radius: 0 0 12px 12px !important;
+            border-top: none !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stButton"] button:hover {
+            transform: translateY(-2px);
+        }
         </style>
     """, unsafe_allow_html=True)
 
