@@ -9,37 +9,36 @@ st.set_page_config(
     layout="wide"
 )
 
-# Function to encode PNG image file
+# Function to encode JPEG image file
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
-image_filename = 'bg.png'
+image_filename = 'bg.jpeg.jpeg'
 
 try:
     bin_str = get_base64_of_bin_file(image_filename)
     st.markdown(
         f"""
         <style>
-        /* PROPERLY HIDE STREAMLIT TOP BAR, DECORATION & FOOTER */
-        #MainMenu {{visibility: hidden !important;}}
-        header {{visibility: hidden !important; display: none !important;}}
-        footer {{visibility: hidden !important;}}
-        .stDecoration {{display: none !important;}}
+        /* Top Header, Menu & Footer Hide */
+        #MainMenu {{visibility: hidden;}}
+        header {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
 
         .stApp {{
-            background-image: url("data:image/png;base64,{bin_str}");
+            background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.92);
+            background-color: rgba(255, 255, 255, 0.90);
             padding: 2rem;
             border-radius: 12px;
-            margin-top: 1.0rem;
+            margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
         
@@ -61,7 +60,7 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH COLORFUL FILE UPLOADER BOX WITH EXCEL ICON */
+        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE WITH EXCEL ICON) */
         div[data-testid="stFileUploader"] {{
             position: relative;
             background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
@@ -72,7 +71,7 @@ try:
             transition: all 0.3s ease;
         }}
         
-        /* HIDE DEFAULT SMALL SUBTEXT */
+        /* HIDE DEFAULT UPLOADER SUBTEXT/HELPER TEXT COMPLETELY */
         div[data-testid="stFileUploader"] small {{
             display: none !important;
         }}
@@ -105,7 +104,7 @@ try:
             color: #0e1117 !important;
         }}
 
-        /* CUSTOM HEADER STYLING */
+        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
         .custom-header-container {{
             display: flex;
             align-items: center;
