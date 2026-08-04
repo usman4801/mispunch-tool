@@ -71,9 +71,13 @@ try:
             transition: all 0.3s ease;
         }}
         
-        /* HIDE DEFAULT UPLOADER SUBTEXT/HELPER TEXT COMPLETELY */
-        div[data-testid="stFileUploader"] small {{
+        /* COMPLETELY HIDE DEFAULT UPLOADER SUBTEXT & HELPER TEXT */
+        div[data-testid="stFileUploader"] small,
+        div[data-testid="stFileUploader"] span,
+        div[data-testid="stFileUploader"] div[data-testid="stMarkdownContainer"] p {{
             display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
         }}
         
         /* EXCEL ICON INJECTION ON RIGHT SIDE */
@@ -102,6 +106,9 @@ try:
             font-size: 16px !important;
             font-weight: 700 !important;
             color: #0e1117 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }}
 
         /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
