@@ -55,10 +55,6 @@ try:
             color: #000000 !important;
         }}
 
-        div[data-testid="stRadioButton"] > div {{
-            flex-direction: row;
-            gap: 15px;
-        }}
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
