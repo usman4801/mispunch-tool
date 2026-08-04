@@ -59,6 +59,38 @@ try:
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
         }}
+
+        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
+        .custom-header-container {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-family: sans-serif;
+        }}
+        .custom-icon-box {{
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 10px rgba(0,97,255,0.3);
+        }}
+        .custom-title-text {{
+            font-size: 28px;
+            font-weight: 800;
+            color: #1e1e2f;
+            line-height: 1.2;
+        }}
+        .custom-subtitle-text {{
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
+            margin-top: 2px;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -66,9 +98,16 @@ try:
 except Exception:
     pass
 
-# Main UI Header
-st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
-st.markdown("Real-time insights and system performance overview")
+# --- MAIN PAGE COLORFUL HEADER ---
+st.markdown("""
+    <div class="custom-header-container">
+        <div class="custom-icon-box">📊</div>
+        <div>
+            <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
+            <div class="custom-subtitle-text">Real-time insights and system performance overview</div>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -195,7 +234,15 @@ if uploaded_file is not None:
     name_col = col_names[1]
     punch_cols = col_names[4:]
     
-    st.subheader("📋 Processing Summary & Live Analysis")
+    # --- SECTION HEADER WITH ICON STYLE ---
+    st.markdown("""
+        <div class="custom-header-container" style="margin-top: 20px;">
+            <div class="custom-icon-box" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); width: 40px; height: 40px; font-size: 20px;">📋</div>
+            <div>
+                <div class="custom-title-text" style="font-size: 22px;">Processing Summary & Live Analysis</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
@@ -232,7 +279,7 @@ if uploaded_file is not None:
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
-    # --- STYLISH GRADIENT CARDS & MATCHING BUTTONS CSS ---
+    # --- STYLISH GRADIENT CARDS CSS & LAYOUT ---
     st.markdown("""
         <style>
         .metric-card {
@@ -250,7 +297,6 @@ if uploaded_file is not None:
         .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
         .card-value { font-size: 36px; font-weight: 800; }
 
-        /* Custom styling to give buttons matching soft/solid background accents */
         div[data-testid="stButton"] button {
             border-radius: 0 0 12px 12px !important;
             border-top: none !important;
