@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 
-# Page Config
+# Page Config (Updated Page Title)
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
     layout="wide"
@@ -22,7 +22,7 @@ try:
     st.markdown(
         f"""
         <style>
-        /* Top Header, Menu & Footer Hide */
+        /* Top Header, Menu & Footer Hide karne ke liye */
         #MainMenu {{visibility: hidden;}}
         header {{visibility: hidden;}}
         footer {{visibility: hidden;}}
@@ -35,14 +35,15 @@ try:
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.90);
+            background-color: rgba(255, 255, 255, 0.92);
             padding: 2rem;
             border-radius: 12px;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 100% !important;
         }}
         
-        /* WAREHOUSE BOX CUSTOM STYLING */
+        /* WAREHOUSE BOX CUSTOM STYLING (MATCHING IMAGE) */
         div[data-baseweb="select"] {{
             border: 2px solid #000000 !important;
             border-radius: 6px !important;
@@ -55,41 +56,103 @@ try:
             color: #000000 !important;
         }}
 
+        div[data-testid="stRadioButton"] > div {{
+            flex-direction: row;
+            gap: 15px;
+        }}
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
         }}
 
-        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
-        .custom-header-container {{
+        /* STYLISH WIDE BANNER HEADER */
+        .hero-banner {{
+            position: relative;
+            background: linear-gradient(90deg, #ffffff 40%, rgba(255,255,255,0.7) 70%, transparent 100%),
+                        url("data:image/jpeg;base64,{bin_str}");
+            background-size: cover;
+            background-position: center;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+        }
+        .hero-content {{
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            font-family: sans-serif;
+            justify-content: space-between;
+            position: relative;
+            z-index: 2;
         }}
-        .custom-icon-box {{
-            width: 50px;
-            height: 50px;
+        .hero-left {{
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }}
+        .hero-icon {{
+            width: 65px;
+            height: 65px;
             background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
-            border-radius: 12px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 4px 10px rgba(0,97,255,0.3);
+            font-size: 32px;
+            box-shadow: 0 6px 15px rgba(0,97,255,0.3);
+            flex-shrink: 0;
         }}
-        .custom-title-text {{
+        .hero-title {{
             font-size: 28px;
             font-weight: 800;
-            color: #1e1e2f;
+            color: #0e1117;
             line-height: 1.2;
+            margin: 0;
+            font-family: sans-serif;
         }}
-        .custom-subtitle-text {{
+        .hero-subtitle {{
             font-size: 14px;
+            color: #555555;
+            margin-top: 5px;
             font-weight: 500;
-            color: #6c757d;
-            margin-top: 2px;
+            font-family: sans-serif;
+        }}
+        .hero-instruction {{
+            font-size: 13px;
+            color: #444444;
+            margin-top: 12px;
+            font-weight: 600;
+            border-left: 3px solid #0061ff;
+            padding-left: 8px;
+            font-family: sans-serif;
+        }}
+
+        /* STYLISH GRADIENT CARDS CSS & LAYOUT */
+        .metric-card {{
+            padding: 22px;
+            border-radius: 12px 12px 0 0;
+            color: white;
+            font-family: sans-serif;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }}
+        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
+        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
+        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
+        
+        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
+        .card-value { font-size: 36px; font-weight: 800; }
+
+        div[data-testid="stButton"] button {{
+            border-radius: 0 0 12px 12px !important;
+            border-top: none !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }}
+        div[data-testid="stButton"] button:hover {{
+            transform: translateY(-2px);
         }}
         </style>
         """,
@@ -98,21 +161,27 @@ try:
 except Exception:
     pass
 
-# --- MAIN PAGE COLORFUL HEADER ---
+# --- WIDE HERO BANNER HEADER ---
 st.markdown("""
-    <div class="custom-header-container">
-        <div class="custom-icon-box">📊</div>
-        <div>
-            <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Real-time insights and system performance overview</div>
+    <div class="hero-banner">
+        <div class="hero-content">
+            <div class="hero-left">
+                <div class="hero-icon">📊</div>
+                <div>
+                    <h1 class="hero-title">Attendance Mispunch & Repeated Defaulter Intelligence</h1>
+                    <div class="hero-subtitle">Real-time insights and system performance overview</div>
+                    <div class="hero-instruction">Apni attendance Excel file upload karein taake Mispunches (Missing IN/OUT) auto-detect ho sakein.</div>
+                </div>
+            </div>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown("---")
-
-# Warehouse Box
+# -------------------------------------------------------------
+# WAREHOUSE BOX
+# -------------------------------------------------------------
 col_wh, col_space = st.columns([1.5, 8.5])
+
 with col_wh:
     selected_warehouse = st.selectbox(
         "Warehouse",
@@ -234,13 +303,11 @@ if uploaded_file is not None:
     name_col = col_names[1]
     punch_cols = col_names[4:]
     
-    # --- SECTION HEADER WITH ICON STYLE ---
+    # Section Header with Clipboard Icon Box Style
     st.markdown("""
-        <div class="custom-header-container" style="margin-top: 20px;">
-            <div class="custom-icon-box" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); width: 40px; height: 40px; font-size: 20px;">📋</div>
-            <div>
-                <div class="custom-title-text" style="font-size: 22px;">Processing Summary & Live Analysis</div>
-            </div>
+        <div style="display: flex; align-items: center; gap: 12px; margin-top: 1.5rem; margin-bottom: 1rem;">
+            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; box-shadow: 0 4px 10px rgba(142,45,226,0.3);">📋</div>
+            <h2 style="margin: 0; padding: 0; font-size: 1.4rem; font-weight: 700; color: #0e1117;">Processing Summary & Live Analysis</h2>
         </div>
     """, unsafe_allow_html=True)
     
@@ -276,40 +343,11 @@ if uploaded_file is not None:
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
     
+    total_errors = len(mispunches_only) + len(defaulter_hours_only)
+    
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
-    # --- STYLISH GRADIENT CARDS CSS & LAYOUT ---
-    st.markdown("""
-        <style>
-        .metric-card {
-            padding: 22px;
-            border-radius: 12px 12px 0 0;
-            color: white;
-            font-family: sans-serif;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
-        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
-        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
-        
-        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
-        .card-value { font-size: 36px; font-weight: 800; }
-
-        div[data-testid="stButton"] button {
-            border-radius: 0 0 12px 12px !important;
-            border-top: none !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-        }
-        div[data-testid="stButton"] button:hover {
-            transform: translateY(-2px);
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
