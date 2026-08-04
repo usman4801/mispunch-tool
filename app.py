@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 
-# Page Config (Updated Page Title)
+# Page Config
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
     layout="wide"
@@ -22,7 +22,7 @@ try:
     st.markdown(
         f"""
         <style>
-        /* Top Header, Menu & Footer Hide karne ke liye */
+        /* Top Header, Menu & Footer Hide */
         #MainMenu {{visibility: hidden;}}
         header {{visibility: hidden;}}
         footer {{visibility: hidden;}}
@@ -43,7 +43,7 @@ try:
             max-width: 100% !important;
         }}
         
-        /* WAREHOUSE BOX CUSTOM STYLING (MATCHING IMAGE) */
+        /* WAREHOUSE BOX CUSTOM STYLING */
         div[data-baseweb="select"] {{
             border: 2px solid #000000 !important;
             border-radius: 6px !important;
@@ -56,10 +56,6 @@ try:
             color: #000000 !important;
         }}
 
-        div[data-testid="stRadioButton"] > div {{
-            flex-direction: row;
-            gap: 15px;
-        }}
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
@@ -128,7 +124,7 @@ try:
             font-family: sans-serif;
         }}
 
-        /* STYLISH GRADIENT CARDS CSS & LAYOUT */
+        /* STYLISH GRADIENT CARDS & BUTTONS */
         .metric-card {{
             padding: 22px;
             border-radius: 12px 12px 0 0;
@@ -144,16 +140,16 @@ try:
         .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
         .card-value { font-size: 36px; font-weight: 800; }
 
-        div[data-testid="stButton"] button {{
+        div[data-testid="stButton"] button {
             border-radius: 0 0 12px 12px !important;
             border-top: none !important;
             font-weight: 600 !important;
             box-shadow: 0 4px 10px rgba(0,0,0,0.08);
             transition: all 0.3s ease;
-        }}
-        div[data-testid="stButton"] button:hover {{
+        }
+        div[data-testid="stButton"] button:hover {
             transform: translateY(-2px);
-        }}
+        }
         </style>
         """,
         unsafe_allow_html=True
@@ -177,11 +173,8 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# -------------------------------------------------------------
-# WAREHOUSE BOX
-# -------------------------------------------------------------
+# Warehouse Box
 col_wh, col_space = st.columns([1.5, 8.5])
-
 with col_wh:
     selected_warehouse = st.selectbox(
         "Warehouse",
@@ -342,8 +335,6 @@ if uploaded_file is not None:
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
-    
-    total_errors = len(mispunches_only) + len(defaulter_hours_only)
     
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
