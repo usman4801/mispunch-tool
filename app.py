@@ -60,51 +60,37 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH GRADIENT CARDS & MATCHING BUTTONS */
-        .metric-card {{
-            padding: 22px;
-            border-radius: 12px 12px 0 0;
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }}
-        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
-        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
-        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
-        
-        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
-        .card-value { font-size: 36px; font-weight: 800; }
-
-        div[data-testid="stButton"] button {
-            border-radius: 0 0 12px 12px !important;
-            border-top: none !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-        }
-        div[data-testid="stButton"] button:hover {
-            transform: translateY(-2px);
-        }
-
-        /* ICON BOX CONTAINER (MATCHING ORIGINAL STREAMLIT FONT & LOOK) */
-        .app-header-box {
+        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
+        .custom-header-container {{
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 1.5rem;
-        }
-        .app-icon-container {
-            width: 52px;
-            height: 52px;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-family: sans-serif;
+        }}
+        .custom-icon-box {{
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 26px;
-            box-shadow: 0 4px 12px rgba(0, 97, 255, 0.25);
-            flex-shrink: 0;
-        }
+            font-size: 24px;
+            box-shadow: 0 4px 10px rgba(0,97,255,0.3);
+        }}
+        .custom-title-text {{
+            font-size: 28px;
+            font-weight: 800;
+            color: #1e1e2f;
+            line-height: 1.2;
+        }}
+        .custom-subtitle-text {{
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
+            margin-top: 2px;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -112,13 +98,13 @@ try:
 except Exception:
     pass
 
-# Main UI Header with Colorful Book/Icon Box and Original Streamlit Font
+# --- MAIN PAGE COLORFUL HEADER ---
 st.markdown("""
-    <div class="app-header-box">
-        <div class="app-icon-container">📊</div>
+    <div class="custom-header-container">
+        <div class="custom-icon-box">📊</div>
         <div>
-            <h1 style="margin: 0; padding: 0; font-size: 2.25rem; font-weight: 700; color: #0e1117; line-height: 1.2;">Attendance Mispunch & Repeated Defaulter Intelligence</h1>
-            <p style="margin: 4px 0 0 0; color: #6c757d; font-size: 1rem; font-weight: 400;">Real-time insights and system performance overview</p>
+            <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
+            <div class="custom-subtitle-text">Real-time insights and system performance overview</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -248,12 +234,12 @@ if uploaded_file is not None:
     name_col = col_names[1]
     punch_cols = col_names[4:]
     
-    # Section Header with Book/Clipboard Icon Box Style
+    # --- SECTION HEADER WITH ICON STYLE ---
     st.markdown("""
-        <div class="app-header-box" style="margin-top: 1rem;">
-            <div class="app-icon-container" style="width: 42px; height: 42px; font-size: 20px; background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);">📋</div>
+        <div class="custom-header-container" style="margin-top: 20px;">
+            <div class="custom-icon-box" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); width: 40px; height: 40px; font-size: 20px;">📋</div>
             <div>
-                <h2 style="margin: 0; padding: 0; font-size: 1.5rem; font-weight: 700; color: #0e1117; line-height: 1.2;">Processing Summary & Live Analysis</h2>
+                <div class="custom-title-text" style="font-size: 22px;">Processing Summary & Live Analysis</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -293,6 +279,37 @@ if uploaded_file is not None:
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
+    # --- STYLISH GRADIENT CARDS CSS & LAYOUT ---
+    st.markdown("""
+        <style>
+        .metric-card {
+            padding: 22px;
+            border-radius: 12px 12px 0 0;
+            color: white;
+            font-family: sans-serif;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
+        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
+        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
+        
+        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
+        .card-value { font-size: 36px; font-weight: 800; }
+
+        div[data-testid="stButton"] button {
+            border-radius: 0 0 12px 12px !important;
+            border-top: none !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stButton"] button:hover {
+            transform: translateY(-2px);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
