@@ -59,12 +59,6 @@ try:
             flex-direction: row;
             gap: 15px;
         }}
-        div[data-testid="stMetric"] {{
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-        }}
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
@@ -78,6 +72,7 @@ except Exception:
 
 # Main UI Header (Updated Tool Name)
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
+st.markdown("Real-time insights and system performance overview")
 
 st.markdown("---")
 
@@ -246,26 +241,67 @@ if uploaded_file is not None:
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
+    # --- STYLISH GRADIENT CARDS CSS & LAYOUT ---
+    st.markdown("""
+        <style>
+        .metric-card {
+            padding: 22px;
+            border-radius: 12px;
+            color: white;
+            font-family: sans-serif;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+        }
+        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
+        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
+        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
+        
+        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
+        .card-value { font-size: 36px; font-weight: 800; }
+        </style>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Records", len(final_df))
-        if st.button("👁️ View All Records", key="btn_all", use_container_width=True):
+        st.markdown(f"""
+            <div class="metric-card card-blue">
+                <div class="card-title">📦 Total Records</div>
+                <div class="card-value">{len(final_df)}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("👁️ View All Records ➔", key="btn_all", use_container_width=True):
             st.session_state.selected_view = "all"
             
     with col2:
-        st.metric("Clean Records", len(clean_records_only))
-        if st.button("👁️ View Clean List", key="btn_clean", use_container_width=True):
+        st.markdown(f"""
+            <div class="metric-card card-green">
+                <div class="card-title">✅ Clean Records</div>
+                <div class="card-value">{len(clean_records_only)}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("👁️ View Clean List ➔", key="btn_clean", use_container_width=True):
             st.session_state.selected_view = "clean"
             
     with col3:
-        st.metric("Mispunches", len(mispunches_only))
-        if st.button("⚠️ View Mispunches", key="btn_mispunch", type="primary", use_container_width=True):
+        st.markdown(f"""
+            <div class="metric-card card-orange">
+                <div class="card-title">⚠️ Mispunches</div>
+                <div class="card-value">{len(mispunches_only)}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("⚠️ View Mispunches ➔", key="btn_mispunch", type="primary", use_container_width=True):
             st.session_state.selected_view = "mispunches"
             
     with col4:
-        st.metric("Defaulter Hours", len(defaulter_hours_only))
-        if st.button("⏰ View Defaulters", key="btn_defaulters", use_container_width=True):
+        st.markdown(f"""
+            <div class="metric-card card-purple">
+                <div class="card-title">⏰ Defaulter Hours</div>
+                <div class="card-value">{len(defaulter_hours_only)}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("⏰ View Defaulters ➔", key="btn_defaulters", use_container_width=True):
             st.session_state.selected_view = "defaulters"
             
     st.markdown("---")
