@@ -30,12 +30,12 @@ try:
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
-            background-position: center;
+            background-position: center top;
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.90);
+            background-color: rgba(255, 255, 255, 0.92);
             padding: 2rem;
             border-radius: 12px;
             margin-top: 1.5rem;
@@ -60,10 +60,10 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE WITH EXCEL ICON) */
+        /* STYLISH COLORFUL FILE UPLOADER BOX WITH SOLID BACKGROUND TO BLOCK OVERLAP */
         div[data-testid="stFileUploader"] {{
             position: relative;
-            background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
+            background: linear-gradient(90deg, rgba(0, 97, 255, 0.06) 0%, rgba(96, 239, 255, 0.15) 50%, rgba(142, 45, 226, 0.08) 100%) !important;
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
             border-radius: 12px !important;
@@ -71,13 +71,7 @@ try:
             transition: all 0.3s ease;
         }}
         
-        /* HIDE ALL DEFAULT UPLOADER INSTRUCTIONS & TEXT COMPLETELY */
-        div[data-testid="stFileUploader"] section div {{
-            color: transparent !important;
-        }}
-        div[data-testid="stFileUploader"] section svg {{
-            color: #3b82f6 !important;
-        }}
+        /* HIDE DEFAULT UPLOADER SUBTEXT COMPLETELY */
         div[data-testid="stFileUploader"] small {{
             display: none !important;
         }}
@@ -511,3 +505,4 @@ if uploaded_file is not None:
         file_name="Refined_Attendance_Report.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    
