@@ -22,15 +22,16 @@ try:
     st.markdown(
         f"""
         <style>
-        /* Top Header, Menu & Footer Hide */
-        #MainMenu {{visibility: hidden;}}
-        header {{visibility: hidden;}}
-        footer {{visibility: hidden;}}
+        /* PROPERLY HIDE STREAMLIT TOP BAR, DECORATION & FOOTER */
+        #MainMenu {{visibility: hidden !important;}}
+        header {{visibility: hidden !important; display: none !important;}}
+        footer {{visibility: hidden !important;}}
+        .stDecoration {{display: none !important;}}
 
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
-            background-position: center top;
+            background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
@@ -38,7 +39,7 @@ try:
             background-color: rgba(255, 255, 255, 0.92);
             padding: 2rem;
             border-radius: 12px;
-            margin-top: 1.5rem;
+            margin-top: 1.0rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
         
@@ -60,10 +61,10 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH COLORFUL FILE UPLOADER BOX WITH SOLID BACKGROUND TO BLOCK OVERLAP */
+        /* STYLISH COLORFUL FILE UPLOADER BOX WITH EXCEL ICON */
         div[data-testid="stFileUploader"] {{
             position: relative;
-            background: linear-gradient(90deg, rgba(0, 97, 255, 0.06) 0%, rgba(96, 239, 255, 0.15) 50%, rgba(142, 45, 226, 0.08) 100%) !important;
+            background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
             border-radius: 12px !important;
@@ -71,7 +72,7 @@ try:
             transition: all 0.3s ease;
         }}
         
-        /* HIDE DEFAULT UPLOADER SUBTEXT COMPLETELY */
+        /* HIDE DEFAULT SMALL SUBTEXT */
         div[data-testid="stFileUploader"] small {{
             display: none !important;
         }}
@@ -97,6 +98,11 @@ try:
         }}
         div[data-testid="stFileUploader"] section {{
             background-color: transparent !important;
+        }}
+        div[data-testid="stFileUploader"] label p {{
+            font-size: 16px !important;
+            font-weight: 700 !important;
+            color: #0e1117 !important;
         }}
 
         /* CUSTOM HEADER STYLING */
@@ -161,8 +167,7 @@ with col_wh:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-st.markdown("<p style='font-size: 16px; font-weight: 700; color: #0e1117; margin-bottom: 5px;'>Upload Excel/CSV File</p>", unsafe_allow_html=True)
-uploaded_file = st.file_uploader("", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
+uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
@@ -505,4 +510,3 @@ if uploaded_file is not None:
         file_name="Refined_Attendance_Report.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    
