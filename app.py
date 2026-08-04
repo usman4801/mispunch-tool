@@ -71,6 +71,11 @@ try:
             transition: all 0.3s ease;
         }}
         
+        /* HIDE DEFAULT UPLOADER SUBTEXT/HELPER TEXT COMPLETELY */
+        div[data-testid="stFileUploader"] small {{
+            display: none !important;
+        }}
+        
         /* EXCEL ICON INJECTION ON RIGHT SIDE */
         div[data-testid="stFileUploader"]::after {{
             content: "";
