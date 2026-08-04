@@ -74,7 +74,7 @@ try:
             margin-bottom: 25px;
             border: 1px solid #e0e0e0;
             overflow: hidden;
-        }
+        }}
         .hero-content {{
             display: flex;
             align-items: center;
@@ -132,24 +132,24 @@ try:
             font-family: sans-serif;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }}
-        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
-        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
-        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
+        .card-blue {{ background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }}
+        .card-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
+        .card-orange {{ background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }}
+        .card-purple {{ background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }}
         
-        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
-        .card-value { font-size: 36px; font-weight: 800; }
+        .card-title {{ font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
+        .card-value {{ font-size: 36px; font-weight: 800; }}
 
-        div[data-testid="stButton"] button {
+        div[data-testid="stButton"] button {{
             border-radius: 0 0 12px 12px !important;
             border-top: none !important;
             font-weight: 600 !important;
             box-shadow: 0 4px 10px rgba(0,0,0,0.08);
             transition: all 0.3s ease;
-        }
-        div[data-testid="stButton"] button:hover {
+        }}
+        div[data-testid="stButton"] button:hover {{
             transform: translateY(-2px);
-        }
+        }}
         </style>
         """,
         unsafe_allow_html=True
