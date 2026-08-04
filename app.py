@@ -60,7 +60,7 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE WITH EXCEL ICON) */
+        /* STYLISH COLORFUL FILE UPLOADER BOX WITH EXCEL ICON */
         div[data-testid="stFileUploader"] {{
             position: relative;
             background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
@@ -71,7 +71,6 @@ try:
             transition: all 0.3s ease;
         }}
         
-        /* EXCEL ICON INJECTION ON RIGHT SIDE */
         div[data-testid="stFileUploader"]::after {{
             content: "";
             position: absolute;
@@ -99,7 +98,7 @@ try:
             color: #0e1117 !important;
         }}
 
-        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
+        /* CUSTOM HEADER STYLING */
         .custom-header-container {{
             display: flex;
             align-items: center;
@@ -314,9 +313,24 @@ if uploaded_file is not None:
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
-    
-    # Repeated Offenders filtering (records where Repeated Offender count > 1)
     repeated_offenders_only = final_df[final_df['Repeated\nOffender'] > 1].copy()
+    
+    # --- ADVANCE FEATURE: ATTENDANCE HEALTH SCORE ---
+    total_records_count = len(final_df)
+    clean_count = len(clean_records_only)
+    compliance_score = int((clean_count / total_records_count) * 100) if total_records_count > 0 else 0
+    
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%); padding: 15px 20px; border-radius: 10px; color: white; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div>
+                <span style="font-size: 16px; font-weight: 700;">🌟 Overall Attendance Compliance Health:</span>
+                <span style="font-size: 14px; color: #a5b4fc; margin-left: 10px;">({clean_count} Clean out of {total_records_count} Total Records)</span>
+            </div>
+            <div style="font-size: 20px; font-weight: 800; background: #38ef7d; color: #065f46; padding: 4px 15px; border-radius: 20px;">
+                {compliance_score}% Compliant
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
@@ -396,6 +410,36 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
+    # --- ADVANCE FEATURE: LIVE SEARCH & FILTER BAR ---
+    search_col1, search_col2 = st.columns([4, 6])
+    with search_col1:
+        search_query = st.text_input("🔍 Live Employee Search", placeholder="Type name or P.Soft ID to filter...")
+
+    # Determine current view dataframe based on session state
+    if st.session_state.selected_view == "defaulters":
+        active_display_df = defaulter_hours_only.drop(columns=['Issue Type'])
+        current_title = f"⏰ Defaulter Working Hours List"
+    elif st.session_state.selected_view == "mispunches":
+        active_display_df = mispunches_only.drop(columns=['Issue Type', 'No. of\nWorking Hours'])
+        current_title = f"⚠️ Missing & Extra Punches List"
+    elif st.session_state.selected_view == "repeated":
+        active_display_df = repeated_offenders_only.drop(columns=['Issue Type'])
+        current_title = f"🔄 Repeated Offenders List"
+    elif st.session_state.selected_view == "clean":
+        active_display_df = clean_records_only.drop(columns=['Issue Type'])
+        current_title = f"✅ Clean Employee Records"
+    else:
+        active_display_df = final_df.drop(columns=['Issue Type'])
+        current_title = f"📊 All Employee Records"
+
+    # Apply search filter if query exists
+    if search_query:
+        query_lower = search_query.lower()
+        active_display_df = active_display_df[
+            active_display_df['Employee Name'].astype(str).str.lower().str.contains(query_lower) |
+            active_display_df['P.Soft ID'].astype(str).str.lower().str.contains(query_lower)
+        ]
+
     column_config_settings = {
         "Repeated\nOffender": st.column_config.NumberColumn(
             "Repeated\nOffender", 
@@ -416,39 +460,11 @@ if uploaded_file is not None:
         )
     }
 
-    if st.session_state.selected_view == "defaulters":
-        st.subheader(f"⏰ Defaulter Working Hours List ({len(defaulter_hours_only)} Records)")
-        st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
-        if len(defaulter_hours_only) > 0:
-            st.dataframe(defaulter_hours_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
-        else:
-            st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
-
-    elif st.session_state.selected_view == "mispunches":
-        st.subheader(f"⚠️ Missing & Extra Punches List ({len(mispunches_only)} Records)")
-        st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
-        if len(mispunches_only) > 0:
-            mispunch_display_df = mispunches_only.drop(columns=['Issue Type', 'No. of\nWorking Hours'])
-            st.dataframe(mispunch_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-        else:
-            st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
-
-    elif st.session_state.selected_view == "repeated":
-        st.subheader(f"🔄 Repeated Offenders List ({len(repeated_offenders_only)} Records)")
-        st.caption("Wo employees jinki attendance aik se zyada dafa repeat hui hai:")
-        if len(repeated_offenders_only) > 0:
-            st.dataframe(repeated_offenders_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
-        else:
-            st.success("🎉 Koi Repeated Offender record nahi mila!")
-
-    elif st.session_state.selected_view == "clean":
-        st.subheader(f"✅ Clean Employee Records ({len(clean_records_only)} Records)")
-        st.caption("Pura time aur exact punches wale perfect records:")
-        st.dataframe(clean_records_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
-
+    st.subheader(f"{current_title} ({len(active_display_df)} Records Found)")
+    if len(active_display_df) > 0:
+        st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
     else:
-        st.subheader(f"📊 All Employee Records ({len(final_df)} Records)")
-        st.dataframe(final_df.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+        st.warning("⚠️ Aapke search query ke mutabiq koi record nahi mila!")
 
     st.markdown("---")
     
