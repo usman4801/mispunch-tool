@@ -60,8 +60,9 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE) */
+        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE WITH EXCEL ICON) */
         div[data-testid="stFileUploader"] {{
+            position: relative; /* Position relative for the icon */
             background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
@@ -69,6 +70,22 @@ try:
             box-shadow: 0 4px 15px rgba(0, 97, 255, 0.08);
             transition: all 0.3s ease;
         }}
+        
+        /* EXCEL ICON INJECTION ON RIGHT SIDE */
+        div[data-testid="stFileUploader"]::after {{
+            content: "";
+            position: absolute;
+            right: 25px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background-image: url('data:image/svg+xml;utf8,<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h20l12 12v40a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4z" fill="%23f8fafc" stroke="%2394a3b8" stroke-width="2"/><path d="M36 4v12h12" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linejoin="round"/><rect x="18" y="26" width="28" height="18" rx="2" fill="%2322c55e"/><path d="M18 32h28M18 38h28M27 26v18M37 26v18" stroke="%23fff" stroke-width="2"/><rect x="32" y="42" width="28" height="16" rx="4" fill="%238b5cf6"/><text x="46" y="53.5" fill="%23fff" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">XLSX</text></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }}
+        
         div[data-testid="stFileUploader"]:hover {{
             border-color: #8e2de2 !important;
             box-shadow: 0 6px 20px rgba(142, 45, 226, 0.15);
