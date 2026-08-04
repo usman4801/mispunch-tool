@@ -71,13 +71,15 @@ try:
             transition: all 0.3s ease;
         }}
         
-        /* COMPLETELY HIDE DEFAULT UPLOADER SUBTEXT & HELPER TEXT */
-        div[data-testid="stFileUploader"] small,
-        div[data-testid="stFileUploader"] span,
-        div[data-testid="stFileUploader"] div[data-testid="stMarkdownContainer"] p {{
+        /* HIDE ALL DEFAULT UPLOADER INSTRUCTIONS & TEXT COMPLETELY */
+        div[data-testid="stFileUploader"] section div {{
+            color: transparent !important;
+        }}
+        div[data-testid="stFileUploader"] section svg {{
+            color: #3b82f6 !important;
+        }}
+        div[data-testid="stFileUploader"] small {{
             display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
         }}
         
         /* EXCEL ICON INJECTION ON RIGHT SIDE */
@@ -102,16 +104,8 @@ try:
         div[data-testid="stFileUploader"] section {{
             background-color: transparent !important;
         }}
-        div[data-testid="stFileUploader"] label p {{
-            font-size: 16px !important;
-            font-weight: 700 !important;
-            color: #0e1117 !important;
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }}
 
-        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
+        /* CUSTOM HEADER STYLING */
         .custom-header-container {{
             display: flex;
             align-items: center;
@@ -173,7 +167,8 @@ with col_wh:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
+st.markdown("<p style='font-size: 16px; font-weight: 700; color: #0e1117; margin-bottom: 5px;'>Upload Excel/CSV File</p>", unsafe_allow_html=True)
+uploaded_file = st.file_uploader("", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
