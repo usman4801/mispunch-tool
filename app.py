@@ -22,6 +22,11 @@ try:
     st.markdown(
         f"""
         <style>
+        /* Top Header, Menu & Footer Hide karne ke liye */
+        #MainMenu {{visibility: hidden;}}
+        header {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
+
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
