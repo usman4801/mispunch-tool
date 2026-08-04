@@ -62,7 +62,7 @@ try:
 
         /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE WITH EXCEL ICON) */
         div[data-testid="stFileUploader"] {{
-            position: relative; /* Position relative for the icon */
+            position: relative;
             background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
@@ -315,6 +315,9 @@ if uploaded_file is not None:
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
     
+    # Repeated Offenders filtering (records where Repeated Offender count > 1)
+    repeated_offenders_only = final_df[final_df['Repeated\nOffender'] > 1].copy()
+    
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
@@ -364,12 +367,12 @@ if uploaded_file is not None:
     with col2:
         st.markdown(f"""
             <div class="metric-card card-green">
-                <div class="card-title">✅ Clean Records</div>
-                <div class="card-value">{len(clean_records_only)}</div>
+                <div class="card-title">🔄 Repeated Offenders</div>
+                <div class="card-value">{len(repeated_offenders_only)}</div>
             </div>
         """, unsafe_allow_html=True)
-        if st.button("👁️ View Clean List ➔", key="btn_clean", use_container_width=True):
-            st.session_state.selected_view = "clean"
+        if st.button("🔄 View Offenders List ➔", key="btn_repeated", use_container_width=True):
+            st.session_state.selected_view = "repeated"
             
     with col3:
         st.markdown(f"""
@@ -430,6 +433,14 @@ if uploaded_file is not None:
         else:
             st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
 
+    elif st.session_state.selected_view == "repeated":
+        st.subheader(f"🔄 Repeated Offenders List ({len(repeated_offenders_only)} Records)")
+        st.caption("Wo employees jinki attendance aik se zyada dafa repeat hui hai:")
+        if len(repeated_offenders_only) > 0:
+            st.dataframe(repeated_offenders_only.drop(columns=['Issue Type']), column_config=column_config_settings, use_container_width=True, hide_index=True)
+        else:
+            st.success("🎉 Koi Repeated Offender record nahi mila!")
+
     elif st.session_state.selected_view == "clean":
         st.subheader(f"✅ Clean Employee Records ({len(clean_records_only)} Records)")
         st.caption("Pura time aur exact punches wale perfect records:")
@@ -450,11 +461,13 @@ if uploaded_file is not None:
                 df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
                 mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
                 defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
+                repeated_offenders_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Repeated Offenders')
         except Exception:
             with pd.ExcelWriter(buffer) as writer:
                 df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
                 mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
                 defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
+                repeated_offenders_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Repeated Offenders')
         return buffer.getvalue()
 
     excel_data = convert_df(final_df)
