@@ -9,13 +9,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# Function to encode JPEG image file
+# Function to encode PNG image file
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
-image_filename = 'bg.jpeg.jpeg'
+image_filename = 'bg.png' # Yahan apni nayi PNG file ka naam likhein
 
 try:
     bin_str = get_base64_of_bin_file(image_filename)
@@ -29,7 +29,8 @@ try:
         .stDecoration {{display: none !important;}}
 
         .stApp {{
-            background-image: url("data:image/jpeg;base64,{bin_str}");
+            background: linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), 
+                        url("data:image/png;base64,{bin_str}");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -70,11 +71,6 @@ try:
             border-radius: 12px !important;
             box-shadow: 0 4px 15px rgba(0, 97, 255, 0.08);
             transition: all 0.3s ease;
-        }}
-        
-        /* HIDE DEFAULT SMALL SUBTEXT */
-        div[data-testid="stFileUploader"] small {{
-            display: none !important;
         }}
         
         /* EXCEL ICON INJECTION ON RIGHT SIDE */
