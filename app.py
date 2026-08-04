@@ -85,6 +85,26 @@ try:
         div[data-testid="stButton"] button:hover {
             transform: translateY(-2px);
         }
+
+        /* ICON BOX CONTAINER (MATCHING ORIGINAL STREAMLIT FONT & LOOK) */
+        .app-header-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 1.5rem;
+        }
+        .app-icon-container {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: 0 4px 12px rgba(0, 97, 255, 0.25);
+            flex-shrink: 0;
+        }
         </style>
         """,
         unsafe_allow_html=True
@@ -92,9 +112,16 @@ try:
 except Exception:
     pass
 
-# Main UI Header with Original Font Style
-st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
-st.markdown("Real-time insights and system performance overview")
+# Main UI Header with Colorful Book/Icon Box and Original Streamlit Font
+st.markdown("""
+    <div class="app-header-box">
+        <div class="app-icon-container">📊</div>
+        <div>
+            <h1 style="margin: 0; padding: 0; font-size: 2.25rem; font-weight: 700; color: #0e1117; line-height: 1.2;">Attendance Mispunch & Repeated Defaulter Intelligence</h1>
+            <p style="margin: 4px 0 0 0; color: #6c757d; font-size: 1rem; font-weight: 400;">Real-time insights and system performance overview</p>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -221,7 +248,15 @@ if uploaded_file is not None:
     name_col = col_names[1]
     punch_cols = col_names[4:]
     
-    st.subheader("📋 Processing Summary & Live Analysis")
+    # Section Header with Book/Clipboard Icon Box Style
+    st.markdown("""
+        <div class="app-header-box" style="margin-top: 1rem;">
+            <div class="app-icon-container" style="width: 42px; height: 42px; font-size: 20px; background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);">📋</div>
+            <div>
+                <h2 style="margin: 0; padding: 0; font-size: 1.5rem; font-weight: 700; color: #0e1117; line-height: 1.2;">Processing Summary & Live Analysis</h2>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
