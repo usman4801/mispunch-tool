@@ -60,6 +60,28 @@ try:
             word-wrap: break-word !important;
         }}
 
+        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE) */
+        div[data-testid="stFileUploader"] {{
+            background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
+            border: 2px dashed #3b82f6 !important;
+            padding: 18px !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 15px rgba(0, 97, 255, 0.08);
+            transition: all 0.3s ease;
+        }}
+        div[data-testid="stFileUploader"]:hover {{
+            border-color: #8e2de2 !important;
+            box-shadow: 0 6px 20px rgba(142, 45, 226, 0.15);
+        }}
+        div[data-testid="stFileUploader"] section {{
+            background-color: transparent !important;
+        }}
+        div[data-testid="stFileUploader"] label p {{
+            font-size: 16px !important;
+            font-weight: 700 !important;
+            color: #0e1117 !important;
+        }}
+
         /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
         .custom-header-container {{
             display: flex;
