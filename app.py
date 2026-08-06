@@ -46,20 +46,48 @@ if bin_str:
             border-radius: 12px !important;
             background: rgba(240, 248, 255, 0.5);
         }}
+        
+        /* -----------------------------------
+           TILES & INVISIBLE BUTTON CSS
+           ----------------------------------- */
         .metric-card {{
-            padding: 22px;
+            padding: 20px;
             border-radius: 12px;
             color: white;
             font-family: sans-serif;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            margin-bottom: 15px;
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }}
         .card-blue {{ background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }}
         .card-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
         .card-orange {{ background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }}
         .card-purple {{ background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }}
+        
         .card-title {{ font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
-        .card-value {{ font-size: 36px; font-weight: 800; }}
+        .card-value {{ font-size: 38px; font-weight: 800; line-height: 1; }}
+
+        /* Hover karne par tile oopar uthegi */
+        div[data-testid="column"]:hover .metric-card {{
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+        }}
+
+        /* Streamlit ke buttons ko invisible bana kar tiles ke oopar overlay kar diya */
+        div[data-testid="column"] div[data-testid="stButton"] {{
+            margin-top: -125px; /* Button ko kheench kar card ke oopar laane ke liye */
+            position: relative;
+            z-index: 999;
+        }}
+        div[data-testid="column"] div[data-testid="stButton"] button {{
+            height: 125px !important;
+            opacity: 0 !important; /* Button ko poori tarah gayab kar diya (taake peeche ki khoobsurat tile dikhe) */
+            cursor: pointer;
+            width: 100%;
+        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -80,7 +108,7 @@ with col2:
 attendance_file = st.file_uploader("Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
 
 def clean_id(val):
-    """Ziddi IDs ko saaf karne ka foolproof function"""
+    """IDs ko clean karne ka foolproof function"""
     try:
         return str(int(float(val)))
     except:
@@ -96,7 +124,6 @@ def load_permanent_roster():
         ros = pd.read_excel('HC.xlsx', sheet_name=sheet)
         ros.columns = [str(c).strip() for c in ros.columns.tolist()]
         
-        # Mapping banayen
         id_col = ros.columns[0]
         hours_map = {}
         for _, row in ros.iterrows():
@@ -136,7 +163,6 @@ if attendance_file is not None:
     known_7_ids = ['203875180'] 
     att_df.loc[att_df['Clean_ID'].isin(known_7_ids), 'Working Hours'] = "7 Hours"
 
-    # Extract punch columns dynamically (ignoring info columns)
     ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
     punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
     if len(punch_cols) == 0 and len(att_df.columns) > 4:
@@ -153,7 +179,6 @@ if attendance_file is not None:
         punches = [parse_time(row.get(c)) for c in punch_cols]
         punches = [p for p in punches if p is not None]
         total_punches = len(punches)
-        
         target = row.get('Working Hours', '9 Hours')
         
         # 12 Mins Buffer
@@ -169,7 +194,6 @@ if attendance_file is not None:
         if total_punches == 1:
             return pd.Series([1, target, "N/A", "Error", "Single Scan Only", "Mispunch"])
 
-        # Calculate duration
         dummy_date = datetime(2026, 1, 1)
         total_secs = 0
         for i in range(0, total_punches - (total_punches % 2), 2):
@@ -194,7 +218,6 @@ if attendance_file is not None:
     analysis_df = att_df.apply(analyze_row, axis=1)
     analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
-    # Punches cleaning for display
     punches_clean = pd.DataFrame()
     for idx, col in enumerate(punch_cols):
         label = "IN" if idx % 2 == 0 else "OUT"
@@ -209,31 +232,55 @@ if attendance_file is not None:
     
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
-    # Categories
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
     repeated = final_df[final_df['Repeated Offender'] > 1]
 
-    # View Buttons
+    # Initialize State
+    if "selected_view" not in st.session_state:
+        st.session_state.selected_view = "all"
+
+    # Clickable Tiles Section
+    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
+    
     with c1:
         st.markdown(f'<div class="metric-card card-blue"><div class="card-title">📦 Total Records</div><div class="card-value">{len(final_df)}</div></div>', unsafe_allow_html=True)
+        if st.button("btn1", key="btn_all", use_container_width=True): st.session_state.selected_view = "all"
+        
     with c2:
         st.markdown(f'<div class="metric-card card-green"><div class="card-title">🔄 Repeated Offenders</div><div class="card-value">{len(repeated)}</div></div>', unsafe_allow_html=True)
+        if st.button("btn2", key="btn_rep", use_container_width=True): st.session_state.selected_view = "repeated"
+        
     with c3:
         st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
+        if st.button("btn3", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
+        
     with c4:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
+        if st.button("btn4", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
 
-    # Search & Display
+    # Filter Data Based on Clicked Tile
+    display_df = final_df.copy()
+    if st.session_state.selected_view == "mispunches":
+        display_df = mispunches
+        st.subheader(f"⚠️ Mispunches ({len(display_df)} Records)")
+    elif st.session_state.selected_view == "defaulters":
+        display_df = defaulters
+        st.subheader(f"⏰ Defaulter Hours ({len(display_df)} Records)")
+    elif st.session_state.selected_view == "repeated":
+        display_df = repeated
+        st.subheader(f"🔄 Repeated Offenders ({len(display_df)} Records)")
+    else:
+        st.subheader(f"📦 All Records ({len(display_df)} Records)")
+
     search = st.text_input("🔍 Search Employee by Name or ID...")
     
-    display_df = final_df.drop(columns=['Issue Type'])
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
+    display_df = display_df.drop(columns=['Issue Type'])
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-    # Download
     csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download Final Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary")
