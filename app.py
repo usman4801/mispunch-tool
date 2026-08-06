@@ -167,24 +167,31 @@ if attendance_file is not None:
         att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
-
     col_names = att_df.columns.tolist()
+
+    # STRICT POSITION & NAME MATCHING TO PREVENT SWAPPING
     id_col = None
     name_col = None
 
-    # Precise column detection to prevent swapping ID and Name
     for col in col_names:
         c_low = col.lower()
         if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
             id_col = col
-        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
+        elif ('employee name' in c_low or c_low == 'employee name') and name_col is None:
             name_col = col
 
-    # Fallback to precise indices if headers differ
-    if id_col is None:
-        id_col = col_names[0] if len(col_names) > 0 else col_names[1]
-    if name_col is None:
-        name_col = col_names[2] if len(col_names) > 2 else (col_names[3] if len(col_names) > 3 else col_names[1])
+    # Fallback index mapping based on standard layout (e.g., Column 0/1 for ID, Column 2/3 for Name)
+    if id_col is None and len(col_names) > 1:
+        id_col = col_names[1]
+    elif id_col is None:
+        id_col = col_names[0]
+
+    if name_col is None and len(col_names) > 3:
+        name_col = col_names[3]
+    elif name_col is None and len(col_names) > 2:
+        name_col = col_names[2]
+    elif name_col is None:
+        name_col = col_names[1]
 
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
