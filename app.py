@@ -169,6 +169,7 @@ if attendance_file is not None:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     col_names = att_df.columns.tolist()
 
+    # STRICT SEPARATION OF ID AND NAME COLUMNS BY EXACT KEYWORDS
     id_col = None
     name_col = None
 
@@ -176,14 +177,16 @@ if attendance_file is not None:
         c_low = col.lower()
         if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
             id_col = col
-        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
+        elif ('employee name' in c_low or c_low == 'employee name' or ('name' in c_low and 'psoft' not in c_low)) and name_col is None:
             name_col = col
 
+    # Fallback if specific names aren't matched
     if id_col is None:
-        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
+        id_col = col_names[0]
     if name_col is None:
-        name_col = col_names[2] if len(col_names) > 2 else col_names[0]
+        name_col = col_names[1] if len(col_names) > 1 else col_names[0]
 
+    # Clean ID and remove .0 completely
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     shift_map = {}
@@ -329,10 +332,10 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # FIXED INDEX MAPPING: Column index 1 for ID, Column index 2 for Name
+    # PERFECT MAPPING: P.Soft ID explicitly pulls Clean_ID, Employee Name pulls the name column
     base_info_df = pd.DataFrame({
-        'P.Soft ID': df.iloc[:, 1].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
-        'Employee Name': df.iloc[:, 2].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        'P.Soft ID': df['Clean_ID'],
+        'Employee Name': df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
