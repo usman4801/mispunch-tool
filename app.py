@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Roster & Attendance Integration Engine</div>
+            <div class="custom-subtitle-text">Permanent Roster Integration & Daily Punch Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -117,12 +117,18 @@ with col_wh:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Two file uploaders: Roster and Attendance Punches
-col_up1, col_up2 = st.columns(2)
-with col_up1:
-    roster_file = st.file_uploader("Upload Roster File (HC.xlsx)", type=["xlsx", "xls", "csv"], key="roster_up")
-with col_up2:
-    attendance_file = st.file_uploader("Upload Attendance / Punches File", type=["xlsx", "xls", "csv"], key="attendance_up")
+# Single File Uploader for Daily Punches only
+attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
+
+# Load permanent embedded roster file automatically
+@st.cache_data
+def load_permanent_roster():
+    try:
+        return pd.read_excel('HC.xlsx', sheet_name='Roster')
+    except Exception:
+        return None
+
+ros_df = load_permanent_roster()
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
@@ -214,36 +220,24 @@ def analyze_mispunches(row, punch_cols):
 
     return pd.Series([total_punches, working_hours_str, status, category, issue_type])
 
-# Process when Attendance file is uploaded
 if attendance_file is not None:
     try:
         att_xls = pd.ExcelFile(attendance_file)
-        att_sheet = att_xls.sheet_names[0]
-        att_df = pd.read_excel(attendance_file, sheet_name=att_sheet)
+        att_df = pd.read_excel(attendance_file, sheet_name=att_xls.sheet_names[0])
     except Exception:
         att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
-    # If roster file is also uploaded, merge rules; otherwise use attendance file columns directly
-    if roster_file is not None:
-        try:
-            ros_xls = pd.ExcelFile(roster_file)
-            ros_sheet = 'Roster' if 'Roster' in ros_xls.sheet_names else ros_xls.sheet_names[0]
-            ros_df = pd.read_excel(roster_file, sheet_name=ros_sheet)
-        except Exception:
-            ros_df = pd.read_csv(roster_file) if roster_file.name.endswith('.csv') else pd.read_excel(roster_file)
-        
-        # Find ID columns for merging
+    # Automatically merge with permanent roster if available
+    if ros_df is not None:
         att_id_col = next((c for c in att_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), att_df.columns[0])
         ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
         
-        # Merge attendance with roster to get Working Hours and Break Policies
         df = pd.merge(att_df, ros_df[['Psoft ID', 'Working Hours', 'No of breaks ', 'Shift timings ']], left_on=att_id_col, right_on=ros_id_col, how='left')
     else:
         df = att_df
 
     col_names = df.columns.tolist()
     
-    # STRICT ID & NAME MAPPING (Guarantees Psoft ID is never mistaken for name)
     id_col = next((c for c in col_names if 'psoft id' in c.lower() or c.strip() == 'Psoft ID'), col_names[1] if len(col_names) > 1 else col_names[0])
     name_col = next((c for c in col_names if 'employee name' in c.lower() or c.strip() == 'Employee Name'), col_names[3] if len(col_names) > 3 else col_names[0])
     
