@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Smart Shift Auto-Detection Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster & Strict Tolerance Window Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -192,8 +192,6 @@ if attendance_file is not None:
 
     if ros_df is not None:
         ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
-        
-        # Flexible column finders
         shift_col = next((c for c in ros_df.columns if 'shift' in c.lower()), None)
         hours_col = next((c for c in ros_df.columns if 'working' in c.lower() or 'hour' in c.lower()), None)
         breaks_col = next((c for c in ros_df.columns if 'break' in c.lower()), None)
@@ -204,7 +202,7 @@ if attendance_file is not None:
                 s_val = str(r[shift_col]).strip().lower()
                 if 'night' in s_val: shift_map[r_id] = "Night"
                 elif 'mid' in s_val: shift_map[r_id] = "Mid"
-                elif 'day' in s_val: shift_map[r_id] = "Day"
+                else: shift_map[r_id] = "Day"
             if hours_col:
                 hours_map[r_id] = str(r[hours_col])
             if breaks_col:
@@ -235,12 +233,10 @@ if attendance_file is not None:
                 
         total_punches = len(punches)
         
-        # SHIFT RESOLUTION: Roster first, otherwise smart-detect from first punch time
         shift_val = row.get('Shift_Roster')
         if pd.isna(shift_val):
             if total_punches > 0:
                 first_p_hour = punches[0].hour
-                # If first punch is between 4 PM (16:00) and 4 AM, it's Night shift
                 if first_p_hour >= 16 or first_p_hour < 5:
                     shift_val = "Night"
                 elif 11 <= first_p_hour < 16:
@@ -252,7 +248,15 @@ if attendance_file is not None:
 
         working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
         target_hours = 7 if '7' in working_hours_raw else 9
-        required_seconds = target_hours * 3600
+        
+        # STRICT TOLERANCE WINDOW LOGIC (in minutes)
+        if target_hours == 9:
+            min_allowed_mins = 8 * 60 + 47  # 8 hours 47 mins (527 mins)
+            max_allowed_mins = 9 * 60 + 12  # 9 hours 12 mins (552 mins)
+        else:
+            # Proportionate tolerance for 7 hours (approx 6h 47m to 7h 12m)
+            min_allowed_mins = 6 * 60 + 47
+            max_allowed_mins = 7 * 60 + 12
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
@@ -282,12 +286,16 @@ if attendance_file is not None:
             total_duration_seconds += (e - s).total_seconds()
         
         effective_seconds = total_duration_seconds - (break_mins * 60)
+        effective_mins = effective_seconds / 60
         hours_str = f"{int(total_duration_seconds // 3600):02d}:{int((total_duration_seconds % 3600) // 60):02d}"
         
-        if total_punches % 2 == 0 and effective_seconds >= required_seconds:
-            return pd.Series([total_punches, shift_val, hours_str, "OK", "Complete", "Clean"])
-        elif total_punches % 2 == 0:
-            return pd.Series([total_punches, shift_val, hours_str, "Error", f"Short Working Hours (< {target_hours}h)", "Defaulter Hours"])
+        if total_punches % 2 == 0:
+            if min_allowed_mins <= effective_mins <= max_allowed_mins:
+                return pd.Series([total_punches, shift_val, hours_str, "OK", "Complete Within Window", "Clean"])
+            elif effective_mins < min_allowed_mins:
+                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Under Time (< {target_hours}h - Tolerance)", "Defaulter Hours"])
+            else:
+                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Over Time (> {target_hours}h + Tolerance)", "Defaulter Hours"])
         else:
             return pd.Series([total_punches, shift_val, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
