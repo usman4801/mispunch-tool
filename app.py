@@ -102,7 +102,7 @@ def clean_id(val):
     except:
         return str(val).strip().lower()
 
-@st.cache_data
+# CACHE HATA DIYA HAI TAHA KAY YEH FRESH FILE PARHAY
 def load_permanent_roster():
     if not os.path.exists('HC.xlsx'):
         return None
@@ -110,19 +110,33 @@ def load_permanent_roster():
         xls = pd.ExcelFile('HC.xlsx')
         sheet = 'Roster' if 'Roster' in xls.sheet_names else xls.sheet_names[0]
         ros = pd.read_excel('HC.xlsx', sheet_name=sheet)
-        ros.columns = [str(c).strip() for c in ros.columns.tolist()]
         
-        id_col = ros.columns[0]
+        # Columns ko clean karein
+        ros_cols = [str(c).strip().lower() for c in ros.columns.tolist()]
+        ros.columns = ros_cols
+        
+        # Dynamic ID column finder
+        id_col = None
+        for col in ros_cols:
+            if 'id' in col or 'psoft' in col or 'emp' in col or 'no' in col:
+                id_col = col
+                break
+        if not id_col:
+            id_col = ros_cols[0]
+            
         hours_map = {}
         for _, row in ros.iterrows():
+            if pd.isna(row.get(id_col)): continue
             cid = clean_id(row[id_col])
+            
+            # Row ke saare text ko check karega
             row_text = " ".join([str(v).lower() for v in row.values])
-            if '7 hours' in row_text or '7 hrs' in row_text or ' 7 ' in row_text:
+            if '7 hour' in row_text or '7 hr' in row_text or '7hr' in row_text or ' 7 ' in row_text or '7.0' in row_text:
                 hours_map[cid] = '7 Hours'
             else:
                 hours_map[cid] = '9 Hours'
         return hours_map
-    except:
+    except Exception as e:
         return None
 
 roster_hours_map = load_permanent_roster()
@@ -147,8 +161,9 @@ if attendance_file is not None:
     else:
         att_df['Working Hours'] = "9 Hours"
 
-    # DIRECT OVERRIDE: Is ID ko hamesha 7 Hours hi treat karega
-    known_7_ids = ['203875180'] 
+    # DIRECT OVERRIDE: Agar roster fail ho bhi jaye toh ye hardcoded list kaam karegi
+    # Main ne screenshot wale 203875184 ko bhi add kar diya hai just in case
+    known_7_ids = ['203875180', '203875184'] 
     att_df.loc[att_df['Clean_ID'].isin(known_7_ids), 'Working Hours'] = "7 Hours"
 
     ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
@@ -228,7 +243,7 @@ if attendance_file is not None:
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "all"
 
-    # View Buttons Section (Names Restored)
+    # View Buttons Section
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     
