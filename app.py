@@ -48,19 +48,14 @@ if bin_str:
         }}
         
         /* -----------------------------------
-           TILES & INVISIBLE BUTTON CSS
+           TILES & BUTTON CSS (RESTORED)
            ----------------------------------- */
         .metric-card {{
-            padding: 20px;
-            border-radius: 12px;
+            padding: 22px;
+            border-radius: 12px 12px 0 0;
             color: white;
             font-family: sans-serif;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            height: 110px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }}
         .card-blue {{ background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }}
         .card-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
@@ -68,25 +63,18 @@ if bin_str:
         .card-purple {{ background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }}
         
         .card-title {{ font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
-        .card-value {{ font-size: 38px; font-weight: 800; line-height: 1; }}
+        .card-value {{ font-size: 36px; font-weight: 800; }}
 
-        /* Hover karne par tile oopar uthegi */
-        div[data-testid="column"]:hover .metric-card {{
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+        /* Restored original beautiful buttons attached to tiles */
+        div[data-testid="stButton"] button {{
+            border-radius: 0 0 12px 12px !important;
+            border-top: none !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
         }}
-
-        /* Streamlit ke buttons ko invisible bana kar tiles ke oopar overlay kar diya */
-        div[data-testid="column"] div[data-testid="stButton"] {{
-            margin-top: -125px; /* Button ko kheench kar card ke oopar laane ke liye */
-            position: relative;
-            z-index: 999;
-        }}
-        div[data-testid="column"] div[data-testid="stButton"] button {{
-            height: 125px !important;
-            opacity: 0 !important; /* Button ko poori tarah gayab kar diya (taake peeche ki khoobsurat tile dikhe) */
-            cursor: pointer;
-            width: 100%;
+        div[data-testid="stButton"] button:hover {{
+            transform: translateY(-2px);
         }}
         </style>
         """,
@@ -240,27 +228,27 @@ if attendance_file is not None:
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "all"
 
-    # Clickable Tiles Section
+    # View Buttons Section (Names Restored)
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     
     with c1:
         st.markdown(f'<div class="metric-card card-blue"><div class="card-title">📦 Total Records</div><div class="card-value">{len(final_df)}</div></div>', unsafe_allow_html=True)
-        if st.button("btn1", key="btn_all", use_container_width=True): st.session_state.selected_view = "all"
+        if st.button("👁️ View All Records ➔", key="btn_all", use_container_width=True): st.session_state.selected_view = "all"
         
     with c2:
         st.markdown(f'<div class="metric-card card-green"><div class="card-title">🔄 Repeated Offenders</div><div class="card-value">{len(repeated)}</div></div>', unsafe_allow_html=True)
-        if st.button("btn2", key="btn_rep", use_container_width=True): st.session_state.selected_view = "repeated"
+        if st.button("🔄 View Offenders List ➔", key="btn_rep", use_container_width=True): st.session_state.selected_view = "repeated"
         
     with c3:
         st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("btn3", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
+        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
         
     with c4:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("btn4", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
+        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
 
-    # Filter Data Based on Clicked Tile
+    # Filter Data Based on Clicked Tile/Button
     display_df = final_df.copy()
     if st.session_state.selected_view == "mispunches":
         display_df = mispunches
