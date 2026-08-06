@@ -111,7 +111,6 @@ st.markdown("""
 
 st.markdown("---")
 
-# Controls Section: Warehouse & Shift Mode Selection
 col_wh, col_mode, col_space = st.columns([2, 4, 4])
 with col_wh:
     selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"], index=0)
@@ -122,7 +121,7 @@ with col_mode:
         options=[
             "Full Day / 24 Hours Data", 
             "Day Shift Only (e.g., 08:00 AM - 06:00 PM)", 
-            "Night Shift Only (e.g., 06:00 PM - 04:00 AM)",
+            "Night Shift Only (e.g., 06:10 PM - 04:10 AM)",
             "Mid Shift Only"
         ], 
         index=1
@@ -179,16 +178,16 @@ def analyze_mispunches(row, punch_cols, mode):
     # SELECTIVE MODE-AWARE SMART FILTERING FOR SINGLE SCANS:
     if total_punches == 1:
         single_punch = punches[0]
+        punch_total_mins = single_punch.hour * 60 + single_punch.minute
         
-        # If Day Shift mode is selected, ignore single punches that belong to evening/night transition start (around 17:00 - 19:00)
-        if "Day Shift Only" in mode and (17 <= single_punch.hour <= 19):
+        # If Day Shift mode is selected, ignore single punches falling precisely around 6:10 PM transition start (18:00 to 19:00)
+        if "Day Shift Only" in mode and (18 * 60 <= punch_total_mins <= 19 * 60):
             return pd.Series([1, "N/A", "OK", "Night Shift Start Check-in (Ignored)", "Clean"])
             
-        # If Night Shift mode is selected, ignore single punches that belong to morning start (around 07:00 - 09:00)
-        elif "Night Shift Only" in mode and (7 <= single_punch.hour <= 9):
+        # If Night Shift mode is selected, ignore single punches that belong to morning start (07:30 to 09:00)
+        elif "Night Shift Only" in mode and (7 * 60 + 30 <= punch_total_mins <= 9 * 60):
             return pd.Series([1, "N/A", "OK", "Day Shift Start Check-in (Ignored)", "Clean"])
             
-        # Otherwise, if it's a single scan during the selected shift, it's a genuine mispunch
         return pd.Series([1, "N/A", "Error", "Single Scan Only (Missing Shift OUT/Breaks)", "Mispunch"])
 
     is_last_punch_an_in = False
