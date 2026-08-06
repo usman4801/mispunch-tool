@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Shift-Aware Authentic Analyzer</div>
+            <div class="custom-subtitle-text">Strict ID-Name Validation & Clean Shift-Aware Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -117,7 +117,6 @@ with col_wh:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# UPLOADER IS NOW PROPERLY DECLARED
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
 
 @st.cache_data
@@ -164,9 +163,6 @@ def analyze_mispunches(row, punch_cols):
     if total_punches == 0:
         return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
 
-    # SHIFT-AWARE INTELLIGENCE:
-    # If total punches == 1, it means this is a shift-start/transition punch (e.g., night shift employee arriving at 6 PM). 
-    # It is completely correct and must NOT be flagged as a mispunch.
     if total_punches == 1:
         return pd.Series([1, "N/A", "OK", "Shift Transition Start (Clean)", "Clean"])
 
@@ -283,9 +279,24 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
+    # EXTRACT RAW ID AND NAME SAFELY
+    raw_ids = df[id_col]
+    raw_names = df[name_col]
+
+    # CLEAN P.SOFT ID: Remove floating point '.0' if present and convert to string
+    cleaned_ids = raw_ids.astype(str).str.replace(r'\.0$', '', regex=True)
+    cleaned_names = raw_names.astype(str)
+
+    # AUTO-CORRECTION / SWAP PREVENTION: 
+    # If ID column accidentally contains comma (names usually formatted as Last,First) or text, swap them back!
+    if cleaned_ids.str.contains(',').any() or cleaned_ids.str.contains(r'[a-zA-Z]').any():
+        temp = cleaned_ids
+        cleaned_ids = cleaned_names.str.replace(r'\.0$', '', regex=True)
+        cleaned_names = temp
+
     base_info_df = pd.DataFrame({
-        'P.Soft ID': df[id_col].astype(str),
-        'Employee Name': df[name_col].astype(str)
+        'P.Soft ID': cleaned_ids,
+        'Employee Name': cleaned_names
     })
     
     for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'Shift timings ']:
