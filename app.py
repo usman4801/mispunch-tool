@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Strict Window Range Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster & Cross-Midnight Shift Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -169,35 +169,34 @@ if attendance_file is not None:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
 
     col_names = att_df.columns.tolist()
-    
-    # Exact robust column detection for Psoft ID and Employee Name
     id_col = None
     name_col = None
 
     for col in col_names:
-        c_low = col.lower()
-        if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
+        col_l = col.lower()
+        if ('psoft' in col_l or 'p.soft' in col_l or 'id' in col_l) and id_col is None:
             id_col = col
-        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
+        elif ('name' in col_l or 'employee' in col_l) and name_col is None:
             name_col = col
 
-    # Fallback based on standard index position if headers vary
     if id_col is None:
-        id_col = col_names[0] if len(col_names) > 0 else None
+        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
     if name_col is None:
-        name_col = col_names[2] if len(col_names) > 2 else (col_names[1] if len(col_names) > 1 else col_names[0])
+        name_col = col_names[3] if len(col_names) > 3 else col_names[0]
 
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     shift_map = {}
     hours_map = {}
     breaks_map = {}
+    timings_map = {}
 
     if ros_df is not None:
         ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
-        shift_col = next((c for c in ros_df.columns if 'shift' in c.lower()), None)
+        shift_col = next((c for c in ros_df.columns if 'shift' in c.lower() and 'timing' not in c.lower()), None)
         hours_col = next((c for c in ros_df.columns if 'working' in c.lower() or 'hour' in c.lower()), None)
         breaks_col = next((c for c in ros_df.columns if 'break' in c.lower()), None)
+        timings_col = next((c for c in ros_df.columns if 'timing' in c.lower()), None)
 
         for _, r in ros_df.iterrows():
             r_id = str(r[ros_id_col]).replace('.0', '').strip()
@@ -210,13 +209,16 @@ if attendance_file is not None:
                 hours_map[r_id] = str(r[hours_col])
             if breaks_col:
                 breaks_map[r_id] = str(r[breaks_col])
+            if timings_col:
+                timings_map[r_id] = str(r[timings_col])
 
     df = att_df.copy()
     df['Shift_Roster'] = df['Clean_ID'].map(shift_map)
     df['Working Hours'] = df['Clean_ID'].map(hours_map).fillna("9 Hours")
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
+    df['Shift Timings'] = df['Clean_ID'].map(timings_map).fillna("")
 
-    ignore_list = [str(id_col).lower(), str(name_col).lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
+    ignore_list = [id_col.lower(), name_col.lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
     
     punch_cols = []
     for col in col_names:
@@ -237,6 +239,8 @@ if attendance_file is not None:
         total_punches = len(punches)
         
         shift_val = row.get('Shift_Roster')
+        shift_timing_str = str(row.get('Shift Timings', '')).lower()
+        
         if pd.isna(shift_val):
             if total_punches > 0:
                 first_p_hour = punches[0].hour
@@ -253,11 +257,11 @@ if attendance_file is not None:
         target_hours = 7 if '7' in working_hours_raw else 9
         
         if target_hours == 9:
-            min_allowed_mins = 527  
-            max_allowed_mins = 552  
+            min_allowed_mins = 527  # 8 hours 47 mins
+            max_allowed_mins = 552  # 9 hours 12 mins
         else:
-            min_allowed_mins = 407  
-            max_allowed_mins = 432  
+            min_allowed_mins = 407
+            max_allowed_mins = 432
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
@@ -271,10 +275,17 @@ if attendance_file is not None:
         if total_punches == 1:
             single_punch = punches[0]
             punch_total_mins = single_punch.hour * 60 + single_punch.minute
-            if "Day Shift Only" in upload_mode and punch_total_mins >= 17 * 60:
+            
+            # Cross-midnight check: If shift ends in the morning (e.g. 8 AM) and single punch falls near shift start or end boundary
+            is_cross_midnight = "next day" in shift_timing_str or shift_val == "Night"
+            
+            if is_cross_midnight and (punch_total_mins <= 9 * 60 or punch_total_mins >= 21 * 60):
+                return pd.Series([1, shift_val, "N/A", "OK", "Cross-Midnight Log (Clean)", "Clean"])
+            elif "Day Shift Only" in upload_mode and punch_total_mins >= 17 * 60:
                 return pd.Series([1, shift_val, "N/A", "OK", "Shift Start (Clean)", "Clean"])
             elif "Night Shift Only" in upload_mode and 6 * 60 <= punch_total_mins <= 12 * 60:
                 return pd.Series([1, shift_val, "N/A", "OK", "Shift Start (Clean)", "Clean"])
+                
             return pd.Series([1, shift_val, "N/A", "Error", "Single Scan Only", "Mispunch"])
 
         dummy_date = datetime(2026, 1, 1)
