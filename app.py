@@ -60,7 +60,7 @@ try:
             word-wrap: break-word !important;
         }}
 
-        /* STYLISH COLORFUL FILE UPLOADER BOX (MATCHING IMAGE WITH EXCEL ICON) */
+        /* STYLISH COLORFUL FILE UPLOADER BOX */
         div[data-testid="stFileUploader"] {{
             position: relative;
             background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
@@ -70,13 +70,9 @@ try:
             box-shadow: 0 4px 15px rgba(0, 97, 255, 0.08);
             transition: all 0.3s ease;
         }}
-        
-        /* HIDE DEFAULT UPLOADER SUBTEXT/HELPER TEXT COMPLETELY */
         div[data-testid="stFileUploader"] small {{
             display: none !important;
         }}
-        
-        /* EXCEL ICON INJECTION ON RIGHT SIDE */
         div[data-testid="stFileUploader"]::after {{
             content: "";
             position: absolute;
@@ -90,7 +86,6 @@ try:
             background-repeat: no-repeat;
             pointer-events: none;
         }}
-        
         div[data-testid="stFileUploader"]:hover {{
             border-color: #8e2de2 !important;
             box-shadow: 0 6px 20px rgba(142, 45, 226, 0.15);
@@ -104,7 +99,6 @@ try:
             color: #0e1117 !important;
         }}
 
-        /* CUSTOM HEADER STYLING (MATCHING IMAGE) */
         .custom-header-container {{
             display: flex;
             align-items: center;
@@ -148,7 +142,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Real-time insights and system performance overview</div>
+            <div class="custom-subtitle-text">Real-time multi-shift, break policy & 7/9 hours intelligence</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -197,6 +191,16 @@ def analyze_mispunches(row, punch_cols):
             
     total_punches = len(punches)
     
+    # Read dynamic employee properties from roster/file
+    break_policy = str(row.get('No of breaks ', row.get('No of breaks', '1 hour break'))).strip().lower()
+    working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
+    
+    # Determine expected target hours (e.g. 7 hours vs 9 hours)
+    target_hours = 7 if '7' in working_hours_raw else 9
+    
+    # Determine expected punches based on break policy
+    expected_punches = 6 if ('2' in break_policy or '30' in break_policy or 'two' in break_policy) else 4
+
     status = "OK"
     category = "Complete"
     working_hours_str = "N/A"
@@ -208,6 +212,7 @@ def analyze_mispunches(row, punch_cols):
         if last_punch_col_index % 2 == 0:
             is_last_punch_an_in = True
 
+    # Check for Mispunches
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
         working_hours_str = "N/A"
@@ -217,17 +222,13 @@ def analyze_mispunches(row, punch_cols):
             category = "Shift END is IN (Missing Shift OUT)"
         elif total_punches == 1:
             category = "Single Scan Only"
-        elif total_punches == 3:
-            category = "Missing Break / Shift IN (3 Punches)"
-        elif total_punches == 5:
-            category = "Missing Break Return (5 Punches)"
         else:
-            category = f"Missing Scan ({total_punches} Punches)"
+            category = f"Missing Scan ({total_punches} Punches, Expected {expected_punches})"
 
-    elif total_punches >= 7:
+    elif total_punches != expected_punches:
         status = "Error"
         working_hours_str = "N/A"
-        category = "Extra Punches"
+        category = f"Incorrect Punch Count ({total_punches} for policy)"
         issue_type = "Mispunch"
 
     elif total_punches in [2, 4, 6]:
@@ -248,16 +249,21 @@ def analyze_mispunches(row, punch_cols):
         
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        min_allowed_seconds = (8 * 3600) + (50 * 60)
-        max_allowed_seconds = (9 * 3600) + (10 * 60)
+        # Dynamic Thresholds based on Target Hours (7 Hours vs 9 Hours)
+        if target_hours == 7:
+            min_allowed_seconds = (6 * 3600) + (50 * 60) # ~6h 50m
+            max_allowed_seconds = (7 * 3600) + (20 * 60) # ~7h 20m
+        else:
+            min_allowed_seconds = (8 * 3600) + (50 * 60) # 8h 50m
+            max_allowed_seconds = (9 * 3600) + (10 * 60) # 9h 10m
         
         if total_seconds < min_allowed_seconds:
             status = "Error"
-            category = "Short Working Hours (< 08:50)"
+            category = f"Short Working Hours (< {target_hours}h target)"
             issue_type = "Defaulter Hours"
         elif total_seconds > max_allowed_seconds:
             status = "Error"
-            category = "Overtime / Excessive Hours (> 09:10)"
+            category = f"Overtime / Excessive Hours (> {target_hours}h target)"
             issue_type = "Defaulter Hours"
         else:
             status = "OK"
@@ -267,23 +273,39 @@ def analyze_mispunches(row, punch_cols):
     return pd.Series([total_punches, working_hours_str, status, category, issue_type])
 
 if uploaded_file is not None:
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+    # Handle multi-sheet workbook support (e.g. checking 'Roster' sheet if uploaded HC.xlsx)
+    try:
+        xls_file = pd.ExcelFile(uploaded_file)
+        if 'Roster' in xls_file.sheet_names:
+            df = pd.read_excel(uploaded_file, sheet_name='Roster')
+        else:
+            df = pd.read_excel(uploaded_file, sheet_name=0)
+    except Exception:
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
         
     col_names = df.columns.tolist()
     
-    id_col = col_names[0]
-    name_col = col_names[1]
-    punch_cols = col_names[4:]
+    # Identify key columns dynamically if present
+    id_col = 'Psoft ID' if 'Psoft ID' in col_names else col_names[1]
+    name_col = 'Employee Name' if 'Employee Name' in col_names else col_names[2]
     
-    # --- SECTION HEADER WITH ICON STYLE ---
+    # Punch columns are typically the time columns or columns after metadata
+    # Let's filter out standard metadata columns
+    metadata_cols = [c for c in col_names if any(k in c.lower() for k in ['sr', 'id', 'name', 'employment', 'country', 'building', 'lob', 'cost', 'shift', 'off', 'working hours', 'break', 'timings'])]
+    punch_cols = [c for c in col_names if c not in metadata_cols]
+    
+    # Fallback if punch_cols is empty
+    if len(punch_cols) == 0:
+        punch_cols = col_names[10:]
+    
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
             <div class="custom-icon-box" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); width: 40px; height: 40px; font-size: 20px;">📋</div>
             <div>
-                <div class="custom-title-text" style="font-size: 22px;">Processing Summary & Live Analysis</div>
+                <div class="custom-title-text" style="font-size: 22px;">Processing Summary & Live Analysis (Roster & Shift Integrated)</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -291,30 +313,27 @@ if uploaded_file is not None:
     analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
-    renamed_punch_cols = {}
     punches_df_cleaned = pd.DataFrame()
-    
     for idx, col in enumerate(punch_cols):
         pair_num = (idx // 2) + 1
         label = "IN" if idx % 2 == 0 else "OUT"
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
-        
-        renamed_punch_cols[col] = col_label
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    base_info_df = df[[id_col, name_col]].copy()
-    base_info_df.columns = ['P.Soft ID', 'Employee Name']
+    # Base info dataframe building
+    base_cols = [id_col, name_col]
+    for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'No of breaks', 'Shift timings ', 'Shift timings']:
+        if opt_col in col_names and opt_col not in base_cols:
+            base_cols.append(opt_col)
+        
+    base_info_df = df[base_cols].copy()
+    
+    rename_dict = {id_col: 'P.Soft ID', name_col: 'Employee Name'}
+    base_info_df = base_info_df.rename(columns=rename_dict)
     
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
-    
-    cols_order = (
-        ['P.Soft ID', 'Employee Name', 'Repeated\nOffender', 'No. of\nWorking Hours', 'Mispunch Category', 'Issue Type'] 
-        + list(punches_df_cleaned.columns) 
-        + ['Total Punches', 'Status']
-    )
-    final_df = final_df[cols_order]
 
     mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
@@ -324,7 +343,6 @@ if uploaded_file is not None:
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "mispunches"
         
-    # --- STYLISH GRADIENT CARDS CSS & LAYOUT ---
     st.markdown("""
         <style>
         .metric-card {
@@ -399,12 +417,10 @@ if uploaded_file is not None:
             
     st.markdown("---")
 
-    # --- LIVE EMPLOYEE SEARCH BAR ---
     search_col1, search_col2 = st.columns([4, 6])
     with search_col1:
         search_query = st.text_input("🔍 Search Employee", placeholder="Type name or P.Soft ID...")
 
-    # Determine current view dataframe
     if st.session_state.selected_view == "defaulters":
         active_display_df = defaulter_hours_only.drop(columns=['Issue Type'])
         current_title = f"⏰ Defaulter Working Hours List"
@@ -421,7 +437,6 @@ if uploaded_file is not None:
         active_display_df = final_df.drop(columns=['Issue Type'])
         current_title = f"📊 All Employee Records"
 
-    # Apply search filter if query is entered
     if search_query:
         query_lower = search_query.lower()
         active_display_df = active_display_df[
@@ -430,57 +445,14 @@ if uploaded_file is not None:
         ]
 
     column_config_settings = {
-        "Repeated\nOffender": st.column_config.NumberColumn(
-            "Repeated\nOffender", 
-            width="medium",
-            format="%d"
-        ),
-        "Total Punches": st.column_config.NumberColumn(
-            "Total\nPunches", 
-            width="small"
-        ),
-        "No. of\nWorking Hours": st.column_config.TextColumn(
-            "No. of\nWorking Hours", 
-            width="medium"
-        ),
-        "Status": st.column_config.TextColumn(
-            "Status", 
-            width="small"
-        )
+        "Repeated\nOffender": st.column_config.NumberColumn("Repeated\nOffender", width="medium", format="%d"),
+        "Total Punches": st.column_config.NumberColumn("Total\nPunches", width="small"),
+        "No. of\nWorking Hours": st.column_config.TextColumn("No. of\nWorking Hours", width="medium"),
+        "Status": st.column_config.TextColumn("Status", width="small")
     }
 
-    if st.session_state.selected_view == "defaulters":
-        st.subheader(f"{current_title} ({len(active_display_df)} Records)")
-        st.caption("Net working hours < 08:50 or > 09:10 wale employees ki list:")
-        if len(active_display_df) > 0:
-            st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-        else:
-            st.success("🎉 Koi Defaulter Working Hours wala record nahi mila!")
-
-    elif st.session_state.selected_view == "mispunches":
-        st.subheader(f"{current_title} ({len(active_display_df)} Records)")
-        st.caption("Missing punches (1, 3, 5), last scan IN, ya Extra Scans (7+) wale employees ki list:")
-        if len(active_display_df) > 0:
-            st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-        else:
-            st.success("🎉 Koi Mispunch / Extra Punch nahi mila!")
-
-    elif st.session_state.selected_view == "repeated":
-        st.subheader(f"{current_title} ({len(active_display_df)} Records)")
-        st.caption("Wo employees jinki attendance aik se zyada dafa repeat hui hai:")
-        if len(active_display_df) > 0:
-            st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-        else:
-            st.success("🎉 Koi Repeated Offender record nahi mila!")
-
-    elif st.session_state.selected_view == "clean":
-        st.subheader(f"{current_title} ({len(active_display_df)} Records)")
-        st.caption("Pura time aur exact punches wale perfect records:")
-        st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-
-    else:
-        st.subheader(f"{current_title} ({len(active_display_df)} Records)")
-        st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
+    st.subheader(f"{current_title} ({len(active_display_df)} Records)")
+    st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
 
     st.markdown("---")
     
