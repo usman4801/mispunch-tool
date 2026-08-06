@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Permanent Roster Integration & Daily Punch Analyzer</div>
+            <div class="custom-subtitle-text">Direct Daily Punch Analyzer & Compliance Engine</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -118,15 +118,6 @@ with col_wh:
 st.markdown("<br>", unsafe_allow_html=True)
 
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
-
-@st.cache_data
-def load_permanent_roster():
-    try:
-        return pd.read_excel('HC.xlsx', sheet_name='Roster')
-    except Exception:
-        return None
-
-ros_df = load_permanent_roster()
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
@@ -157,11 +148,9 @@ def analyze_mispunches(row, punch_cols):
             
     total_punches = len(punches)
     
-    break_policy = str(row.get('No of breaks ', row.get('No of breaks', '1 hour break'))).strip().lower()
-    working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
-    
-    target_hours = 7 if '7' in working_hours_raw else 9
-    expected_punches = 6 if ('2' in break_policy or '30' in break_policy or 'two' in break_policy) else 4
+    # Default standard policy: 9 Hours target, 4 punches expected
+    target_hours = 9
+    expected_punches = 4
 
     if total_punches == 0:
         return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
@@ -200,16 +189,16 @@ def analyze_mispunches(row, punch_cols):
         minutes = int((total_seconds % 3600) // 60)
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        min_allowed_seconds = (6 * 3600) + (50 * 60) if target_hours == 7 else (8 * 3600) + (50 * 60)
-        max_allowed_seconds = (7 * 3600) + (20 * 60) if target_hours == 7 else (9 * 3600) + (10 * 60)
+        min_allowed_seconds = (8 * 3600) + (50 * 60)
+        max_allowed_seconds = (9 * 3600) + (10 * 60)
         
         if total_seconds < min_allowed_seconds:
             status = "Error"
-            category = f"Short Working Hours (< {target_hours}h target)"
+            category = "Short Working Hours (< 08:50)"
             issue_type = "Defaulter Hours"
         elif total_seconds > max_allowed_seconds:
             status = "Error"
-            category = f"Overtime / Excessive Hours (> {target_hours}h target)"
+            category = "Overtime / Excessive Hours (> 09:10)"
             issue_type = "Defaulter Hours"
         else:
             status = "OK"
@@ -221,38 +210,26 @@ def analyze_mispunches(row, punch_cols):
 if attendance_file is not None:
     try:
         att_xls = pd.ExcelFile(attendance_file)
-        att_df = pd.read_excel(attendance_file, sheet_name=att_xls.sheet_names[0])
+        df = pd.read_excel(attendance_file, sheet_name=att_xls.sheet_names[0])
     except Exception:
-        att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
+        df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
-    if ros_df is not None:
-        att_id_col = next((c for c in att_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), att_df.columns[0])
-        ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
-        
-        df = pd.merge(att_df, ros_df[['Psoft ID', 'Working Hours', 'No of breaks ', 'Shift timings ']], left_on=att_id_col, right_on=ros_id_col, how='left')
-    else:
-        df = att_df
+    col_names = [str(c).strip() for c in df.columns.tolist()]
+    df.columns = col_names
 
-    col_names = df.columns.tolist()
+    # EXACT COLUMN EXTRACTION BASED ON EXACT NAMES
+    # Looking specifically for columns containing 'psoft' or 'id' and 'name'
+    id_col = next((c for c in col_names if 'psoft' in c.lower() or c.lower() == 'p.soft id'), col_names[1] if len(col_names) > 1 else col_names[0])
+    name_col = next((c for c in col_names if 'name' in c.lower() or 'employee' in c.lower()), col_names[3] if len(col_names) > 3 else col_names[0])
+
+    # Exclude metadata columns so only punch time columns remain
+    exclude_keywords = ['sr', 'psoft', 'amazon', 'name', 'employment', 'country', 'building', 'lob', 'cost', 'shift', 'off', 'working', 'break', 'timing']
+    punch_cols = [c for c in col_names if not any(kw in c.lower() for kw in exclude_keywords)]
     
-    # STRICT COLUMN IDENTIFICATION TO PREVENT SWAPPING
-    id_col = None
-    name_col = None
-    for c in col_names:
-        c_low = str(c).lower()
-        if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
-            id_col = c
-        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
-            name_col = c
-            
-    if id_col is None:
-        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
-    if name_col is None:
-        name_col = col_names[3] if len(col_names) > 3 else col_names[0]
+    # If dynamic filtering is too strict, grab columns from index 4 onwards as punches
+    if len(punch_cols) == 0 and len(col_names) > 4:
+        punch_cols = col_names[4:]
 
-    known_meta = ['sr', 'psoft id', 'psoft no', 'amazonid', 'amazon id', 'employee name', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
-    punch_cols = [c for c in col_names if str(c).strip().lower() not in known_meta and c not in [id_col, name_col]]
-    
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
             <div class="custom-icon-box" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); width: 40px; height: 40px; font-size: 20px;">📋</div>
@@ -272,15 +249,12 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
+    # FORCE CORRECT MAPPING: P.Soft ID gets ID column, Employee Name gets Name column
     base_info_df = pd.DataFrame({
         'P.Soft ID': df[id_col],
         'Employee Name': df[name_col]
     })
     
-    for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'No of breaks', 'Shift timings ', 'Shift timings']:
-        if opt_col in col_names and opt_col not in base_info_df.columns:
-            base_info_df[opt_col] = df[opt_col]
-        
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
@@ -403,3 +377,4 @@ if attendance_file is not None:
 
     st.subheader(f"{current_title} ({len(active_display_df)} Records)")
     st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
+    
