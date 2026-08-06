@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Direct Daily Punch Analyzer & Compliance Engine</div>
+            <div class="custom-subtitle-text">Locked Column Mapping & Punch Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -148,7 +148,6 @@ def analyze_mispunches(row, punch_cols):
             
     total_punches = len(punches)
     
-    # Default standard policy: 9 Hours target, 4 punches expected
     target_hours = 9
     expected_punches = 4
 
@@ -214,21 +213,15 @@ if attendance_file is not None:
     except Exception:
         df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
-    col_names = [str(c).strip() for c in df.columns.tolist()]
-    df.columns = col_names
+    col_names = df.columns.tolist()
 
-    # EXACT COLUMN EXTRACTION BASED ON EXACT NAMES
-    # Looking specifically for columns containing 'psoft' or 'id' and 'name'
-    id_col = next((c for c in col_names if 'psoft' in c.lower() or c.lower() == 'p.soft id'), col_names[1] if len(col_names) > 1 else col_names[0])
-    name_col = next((c for c in col_names if 'name' in c.lower() or 'employee' in c.lower()), col_names[3] if len(col_names) > 3 else col_names[0])
-
-    # Exclude metadata columns so only punch time columns remain
-    exclude_keywords = ['sr', 'psoft', 'amazon', 'name', 'employment', 'country', 'building', 'lob', 'cost', 'shift', 'off', 'working', 'break', 'timing']
-    punch_cols = [c for c in col_names if not any(kw in c.lower() for kw in exclude_keywords)]
+    # STRICT POSITION LOCKING BASED ON HC.XLSX STANDARD LAYOUT
+    # Column 1 = Psoft ID, Column 3 = Employee Name, Punch columns start from index 16 onwards
+    id_col = col_names[1] if len(col_names) > 1 else col_names[0]
+    name_col = col_names[3] if len(col_names) > 3 else col_names[0]
     
-    # If dynamic filtering is too strict, grab columns from index 4 onwards as punches
-    if len(punch_cols) == 0 and len(col_names) > 4:
-        punch_cols = col_names[4:]
+    # Punch columns are everything from index 16 onwards if available, otherwise fallback
+    punch_cols = col_names[16:] if len(col_names) > 16 else col_names[4:]
 
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
@@ -249,7 +242,7 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # FORCE CORRECT MAPPING: P.Soft ID gets ID column, Employee Name gets Name column
+    # LOCKED MAPPING: P.Soft ID is strictly column 1, Employee Name is strictly column 3
     base_info_df = pd.DataFrame({
         'P.Soft ID': df[id_col],
         'Employee Name': df[name_col]
@@ -377,4 +370,3 @@ if attendance_file is not None:
 
     st.subheader(f"{current_title} ({len(active_display_df)} Records)")
     st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-    
