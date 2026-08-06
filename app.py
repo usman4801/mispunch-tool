@@ -117,10 +117,8 @@ with col_wh:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Single File Uploader for Daily Punches only
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
 
-# Load permanent embedded roster file automatically
 @st.cache_data
 def load_permanent_roster():
     try:
@@ -227,7 +225,6 @@ if attendance_file is not None:
     except Exception:
         att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
-    # Automatically merge with permanent roster if available
     if ros_df is not None:
         att_id_col = next((c for c in att_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), att_df.columns[0])
         ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
@@ -238,11 +235,23 @@ if attendance_file is not None:
 
     col_names = df.columns.tolist()
     
-    id_col = next((c for c in col_names if 'psoft id' in c.lower() or c.strip() == 'Psoft ID'), col_names[1] if len(col_names) > 1 else col_names[0])
-    name_col = next((c for c in col_names if 'employee name' in c.lower() or c.strip() == 'Employee Name'), col_names[3] if len(col_names) > 3 else col_names[0])
-    
+    # STRICT COLUMN IDENTIFICATION TO PREVENT SWAPPING
+    id_col = None
+    name_col = None
+    for c in col_names:
+        c_low = str(c).lower()
+        if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
+            id_col = c
+        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
+            name_col = c
+            
+    if id_col is None:
+        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
+    if name_col is None:
+        name_col = col_names[3] if len(col_names) > 3 else col_names[0]
+
     known_meta = ['sr', 'psoft id', 'psoft no', 'amazonid', 'amazon id', 'employee name', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
-    punch_cols = [c for c in col_names if c.strip().lower() not in known_meta and not any(m in c.lower() for m in ['psoft', 'amazonid', 'employee name'])]
+    punch_cols = [c for c in col_names if str(c).strip().lower() not in known_meta and c not in [id_col, name_col]]
     
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
@@ -269,7 +278,7 @@ if attendance_file is not None:
     })
     
     for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'No of breaks', 'Shift timings ', 'Shift timings']:
-        if opt_col in col_names:
+        if opt_col in col_names and opt_col not in base_info_df.columns:
             base_info_df[opt_col] = df[opt_col]
         
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
