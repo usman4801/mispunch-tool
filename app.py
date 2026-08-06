@@ -172,18 +172,20 @@ if attendance_file is not None:
     id_col = None
     name_col = None
 
+    # Fixed column mapping logic to prevent swapping
     for col in col_names:
         col_l = col.lower()
-        if ('psoft' in col_l or 'p.soft' in col_l or 'id' in col_l) and id_col is None:
+        if ('psoft' in col_l or 'p.soft' in col_l) and id_col is None:
             id_col = col
         elif ('name' in col_l or 'employee' in col_l) and name_col is None:
             name_col = col
 
     if id_col is None:
-        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
+        id_col = col_names[0] if len(col_names) > 0 else col_names[1]
     if name_col is None:
-        name_col = col_names[3] if len(col_names) > 3 else col_names[0]
+        name_col = col_names[2] if len(col_names) > 2 else col_names[3]
 
+    # Clean ID and remove .0 completely
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     shift_map = {}
@@ -257,8 +259,8 @@ if attendance_file is not None:
         target_hours = 7 if '7' in working_hours_raw else 9
         
         if target_hours == 9:
-            min_allowed_mins = 527  # 8 hours 47 mins
-            max_allowed_mins = 552  # 9 hours 12 mins
+            min_allowed_mins = 527  
+            max_allowed_mins = 552  
         else:
             min_allowed_mins = 407
             max_allowed_mins = 432
@@ -276,7 +278,6 @@ if attendance_file is not None:
             single_punch = punches[0]
             punch_total_mins = single_punch.hour * 60 + single_punch.minute
             
-            # Cross-midnight check: If shift ends in the morning (e.g. 8 AM) and single punch falls near shift start or end boundary
             is_cross_midnight = "next day" in shift_timing_str or shift_val == "Night"
             
             if is_cross_midnight and (punch_total_mins <= 9 * 60 or punch_total_mins >= 21 * 60):
