@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Locked Column Mapping & Punch Analyzer</div>
+            <div class="custom-subtitle-text">Precise Column Isolation & Shift-Aware Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -148,20 +148,25 @@ def analyze_mispunches(row, punch_cols):
             
     total_punches = len(punches)
     
-    target_hours = 9
-    expected_punches = 4
-
+    # If no punches found at all -> Absent / No punches
     if total_punches == 0:
         return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
 
+    # Real Mispunch Conditions:
+    # 1. Odd number of punches (e.g. 1, 3, 5 punches instead of pairs)
+    # 2. Last punch is an IN (even index in zero-based python list means an IN punch instead of OUT)
     is_last_punch_an_in = False
     if total_punches > 0:
         if actual_punch_positions[-1] % 2 == 0:
             is_last_punch_an_in = True
 
+    status = "OK"
+    category = "Complete"
+    working_hours_str = "N/A"
+    issue_type = "Clean"
+
     if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
-        working_hours_str = "N/A"
         issue_type = "Mispunch"
         if is_last_punch_an_in and total_punches % 2 == 0:
             category = "Shift END is IN (Missing Shift OUT)"
@@ -169,12 +174,8 @@ def analyze_mispunches(row, punch_cols):
             category = "Single Scan Only"
         else:
             category = f"Missing Scan ({total_punches} Punches)"
-    elif total_punches != expected_punches:
-        status = "Error"
-        working_hours_str = "N/A"
-        category = f"Incorrect Punch Count ({total_punches} found, Expected {expected_punches})"
-        issue_type = "Mispunch"
     else:
+        # Calculate working hours for valid pairs
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
         for i in range(0, total_punches, 2):
@@ -188,6 +189,7 @@ def analyze_mispunches(row, punch_cols):
         minutes = int((total_seconds % 3600) // 60)
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
+        # Standard threshold for defaulter hours
         min_allowed_seconds = (8 * 3600) + (50 * 60)
         max_allowed_seconds = (9 * 3600) + (10 * 60)
         
@@ -213,15 +215,40 @@ if attendance_file is not None:
     except Exception:
         df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
+    # Clean column names by stripping whitespace
+    df.columns = [str(c).strip() for c in df.columns.tolist()]
     col_names = df.columns.tolist()
 
-    # STRICT POSITION LOCKING BASED ON HC.XLSX STANDARD LAYOUT
-    # Column 1 = Psoft ID, Column 3 = Employee Name, Punch columns start from index 16 onwards
-    id_col = col_names[1] if len(col_names) > 1 else col_names[0]
-    name_col = col_names[3] if len(col_names) > 3 else col_names[0]
+    # SECURELY IDENTIFY P.SOFT ID AND EMPLOYEE NAME COLUMNS
+    id_col = None
+    name_col = None
+
+    for col in col_names:
+        col_l = col.lower()
+        if ('psoft' in col_l or 'p.soft' in col_l or col_l == 'id') and id_col is None:
+            id_col = col
+        elif ('name' in col_l or 'employee' in col_l) and name_col is None:
+            name_col = col
+
+    # Fallback index mapping if exact headers aren't caught by keyword search
+    if id_col is None:
+        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
+    if name_col is None:
+        name_col = col_names[3] if len(col_names) > 3 else col_names[0]
+
+    # STRICT PUNCH COLUMNS ISOLATION
+    # Exclude all known metadata columns so ONLY punch time columns are processed
+    ignore_list = [id_col.lower(), name_col.lower(), 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
     
-    # Punch columns are everything from index 16 onwards if available, otherwise fallback
-    punch_cols = col_names[16:] if len(col_names) > 16 else col_names[4:]
+    punch_cols = []
+    for col in col_names:
+        c_low = col.lower()
+        if c_low not in ignore_list and not any(ign in c_low for ign in ['psoft', 'amazon', 'employee', 'building', 'country', 'shift', 'break', 'off']):
+            punch_cols.append(col)
+
+    # If punch columns list is empty, fallback to taking columns from index 4 onwards
+    if len(punch_cols) == 0 and len(col_names) > 4:
+        punch_cols = col_names[4:]
 
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
@@ -242,10 +269,10 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # LOCKED MAPPING: P.Soft ID is strictly column 1, Employee Name is strictly column 3
+    # RIGID BASE DATAFRAME CREATION: P.Soft ID gets ONLY ID data, Employee Name gets ONLY Name data
     base_info_df = pd.DataFrame({
-        'P.Soft ID': df[id_col],
-        'Employee Name': df[name_col]
+        'P.Soft ID': df[id_col].astype(str),
+        'Employee Name': df[name_col].astype(str)
     })
     
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
