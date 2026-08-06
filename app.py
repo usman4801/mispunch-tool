@@ -79,19 +79,26 @@ if bin_str:
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 st.markdown("---")
 
+# -----------------------------------------------------
+# SIDEBAR CONFIGURATIONS
+# -----------------------------------------------------
 def clean_id(val):
     try:
         return str(int(float(val))).strip()
     except:
         return str(val).strip().lower()
 
-# Sidebar Configurations
-st.sidebar.header("⚙️ Configuration")
-manual_7_ids = st.sidebar.text_area("Paste 7-Hour IDs", placeholder="e.g., 204299912")
+st.sidebar.header("⚙️ 7-Hours Configuration")
+st.sidebar.info("Agar koi employee 7 hours par map nahi ho raha, toh uski ID yahan daal dein.")
+manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", placeholder="e.g., 204299912, 203875184")
 manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
-# 5 Excluded Employees
-exclude_list = ['203160008', '204043092', '203160007', '113015344', '203073699']
+st.sidebar.markdown("---")
+st.sidebar.header("🚫 Exclude / Ignore Employees")
+st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 10PM - 8AM shift wale).")
+# Default IDs jo aapne screenshot mein di hain
+exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 204043092, 203160007, 113015344")
+exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
 col1, col2 = st.columns([3, 7])
 with col1:
@@ -111,8 +118,9 @@ def load_permanent_roster():
         if os.path.exists(filename):
             try:
                 ros = pd.read_excel(filename, dtype=str)
-                ros.columns = [str(c).strip().lower() for c in ros.columns.tolist()]
-                id_col = next((c for c in ros.columns if 'id' in c or 'psoft' in c or 'emp' in c or 'no' in c), ros.columns[0])
+                ros_cols = [str(c).strip().lower() for c in ros.columns.tolist()]
+                ros.columns = ros_cols
+                id_col = next((c for c in ros_cols if 'id' in c or 'psoft' in c or 'emp' in c or 'no' in c), ros_cols[0])
                 for _, row in ros.iterrows():
                     if pd.isna(row.get(id_col)): continue
                     cid = clean_id(row[id_col])
@@ -128,7 +136,7 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# History Database Logic
+# MEMORY DATABASE LOGIC
 HISTORY_FILE = 'offenders_history.csv'
 
 def update_and_get_offenders_history(current_offenders_df):
@@ -136,18 +144,16 @@ def update_and_get_offenders_history(current_offenders_df):
     if os.path.exists(HISTORY_FILE):
         history_df = pd.read_csv(HISTORY_FILE, dtype=str)
     else:
-        history_df = pd.DataFrame(columns=['Date', 'Clean_ID', 'Issue Type'])
+        history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
 
-    if not current_offenders_df.empty:
-        new_records = current_offenders_df[['Clean_ID', 'Issue Type']].copy()
-        new_records['Date'] = today_date
-        
-        combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'Clean_ID', 'Issue Type'])
-        combined_df.to_csv(HISTORY_FILE, index=False)
-        
-        offense_counts = combined_df.groupby('Clean_ID').size().reset_index(name='Total Offenses')
-        return offense_counts
-    return pd.DataFrame(columns=['Clean_ID', 'Total Offenses'])
+    new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
+    new_records['Date'] = today_date
+    
+    combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
+    combined_df.to_csv(HISTORY_FILE, index=False)
+    
+    offense_counts = combined_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+    return offense_counts
 
 if attendance_file is not None:
     try:
@@ -155,21 +161,15 @@ if attendance_file is not None:
     except:
         att_df = pd.read_csv(attendance_file, dtype=str)
 
-    # Proper Column Cleaning & Header Fix
-    att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
-    
-    # Agar pehli row mein headers aagaye hain to unhe theek karein
-    if 'Unnamed' in att_df.columns[0] or att_df.iloc[0].astype(str).str.contains('id|psoft', case=False).any():
-        att_df.columns = att_df.iloc[0].values
-        att_df = att_df.iloc[1:].reset_index(drop=True)
-
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     id_col = att_df.columns[0]
     name_col = att_df.columns[1]
 
     att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
-    # Exclude 5 Employees
+    # ==========================================
+    # MAGIC FIX: EXCLUDE EMPLOYEES
+    # ==========================================
     if exclude_list:
         att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
         att_df.reset_index(drop=True, inplace=True)
@@ -247,8 +247,7 @@ if attendance_file is not None:
 
     base_info = pd.DataFrame({
         'P.Soft ID': att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
-        'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
-        'Clean_ID': att_df['Clean_ID']
+        'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
     temp_combined = pd.concat([base_info, analysis_df], axis=1)
@@ -256,23 +255,18 @@ if attendance_file is not None:
     
     historical_counts = update_and_get_offenders_history(today_offenders)
     
-    base_info = base_info.merge(historical_counts, on='Clean_ID', how='left')
+    base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
     base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
     
-    # Drop Clean_ID helper before final join
-    base_info = base_info.drop(columns=['Clean_ID'])
-    base_info.insert(2, 'Repeated Offender', base_info.pop('Total Offenses'))
-
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
-    repeated = final_df[final_df['Repeated Offender'] > 1]
+    repeated = final_df[final_df['Total Offenses'] > 1]
 
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "all"
 
-    # Beautiful Tiles & Buttons Section Restored
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     
