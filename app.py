@@ -46,10 +46,6 @@ if bin_str:
             border-radius: 12px !important;
             background: rgba(240, 248, 255, 0.5);
         }}
-        
-        /* -----------------------------------
-           TILES & BUTTON CSS (RESTORED)
-           ----------------------------------- */
         .metric-card {{
             padding: 22px;
             border-radius: 12px 12px 0 0;
@@ -65,7 +61,6 @@ if bin_str:
         .card-title {{ font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
         .card-value {{ font-size: 36px; font-weight: 800; }}
 
-        /* Restored original beautiful buttons attached to tiles */
         div[data-testid="stButton"] button {{
             border-radius: 0 0 12px 12px !important;
             border-top: none !important;
@@ -84,6 +79,27 @@ if bin_str:
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 st.markdown("---")
 
+# -----------------------------------------------------
+# SIDEBAR CONFIGURATIONS
+# -----------------------------------------------------
+def clean_id(val):
+    try:
+        return str(int(float(val))).strip()
+    except:
+        return str(val).strip().lower()
+
+st.sidebar.header("⚙️ 7-Hours Configuration")
+st.sidebar.info("Agar koi employee 7 hours par map nahi ho raha, toh uski ID yahan daal dein.")
+manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", placeholder="e.g., 204299912, 203875184")
+manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
+
+st.sidebar.markdown("---")
+st.sidebar.header("🚫 Exclude / Ignore Employees")
+st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 10PM - 8AM shift wale).")
+# Default IDs jo aapne screenshot mein di hain (Inko tool hawa mein hi ura dega)
+exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 204043092, 203160007, 113015344")
+exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
+
 col1, col2 = st.columns([3, 7])
 with col1:
     selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"])
@@ -95,76 +111,78 @@ with col2:
 
 attendance_file = st.file_uploader("Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
 
-def clean_id(val):
-    """IDs ko clean karne ka foolproof function"""
-    try:
-        return str(int(float(val)))
-    except:
-        return str(val).strip().lower()
-
-# CACHE HATA DIYA HAI TAHA KAY YEH FRESH FILE PARHAY
+@st.cache_data
 def load_permanent_roster():
-    if not os.path.exists('HC.xlsx'):
-        return None
-    try:
-        xls = pd.ExcelFile('HC.xlsx')
-        sheet = 'Roster' if 'Roster' in xls.sheet_names else xls.sheet_names[0]
-        ros = pd.read_excel('HC.xlsx', sheet_name=sheet)
-        
-        # Columns ko clean karein
-        ros_cols = [str(c).strip().lower() for c in ros.columns.tolist()]
-        ros.columns = ros_cols
-        
-        # Dynamic ID column finder
-        id_col = None
-        for col in ros_cols:
-            if 'id' in col or 'psoft' in col or 'emp' in col or 'no' in col:
-                id_col = col
+    roster_map = {}
+    for filename in ['HC.xlsx', 'hc.xlsx', 'HC.XLSX', 'hc.XLSX']:
+        if os.path.exists(filename):
+            try:
+                ros = pd.read_excel(filename, dtype=str)
+                ros_cols = [str(c).strip().lower() for c in ros.columns.tolist()]
+                ros.columns = ros_cols
+                id_col = next((c for c in ros_cols if 'id' in c or 'psoft' in c or 'emp' in c or 'no' in c), ros_cols[0])
+                for _, row in ros.iterrows():
+                    if pd.isna(row.get(id_col)): continue
+                    cid = clean_id(row[id_col])
+                    row_text = " ".join([str(v).lower() for v in row.values])
+                    if '7 hour' in row_text or '7 hr' in row_text or '7hr' in row_text or ' 7 ' in row_text or '7.0' in row_text:
+                        roster_map[cid] = '7 Hours'
+                    else:
+                        roster_map[cid] = '9 Hours'
                 break
-        if not id_col:
-            id_col = ros_cols[0]
-            
-        hours_map = {}
-        for _, row in ros.iterrows():
-            if pd.isna(row.get(id_col)): continue
-            cid = clean_id(row[id_col])
-            
-            # Row ke saare text ko check karega
-            row_text = " ".join([str(v).lower() for v in row.values])
-            if '7 hour' in row_text or '7 hr' in row_text or '7hr' in row_text or ' 7 ' in row_text or '7.0' in row_text:
-                hours_map[cid] = '7 Hours'
-            else:
-                hours_map[cid] = '9 Hours'
-        return hours_map
-    except Exception as e:
-        return None
+            except Exception:
+                pass
+    return roster_map
 
 roster_hours_map = load_permanent_roster()
 
+# MEMORY DATABASE LOGIC
+HISTORY_FILE = 'offenders_history.csv'
+
+def update_and_get_offenders_history(current_offenders_df):
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    if os.path.exists(HISTORY_FILE):
+        history_df = pd.read_csv(HISTORY_FILE, dtype=str)
+    else:
+        history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
+
+    new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
+    new_records['Date'] = today_date
+    
+    combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
+    combined_df.to_csv(HISTORY_FILE, index=False)
+    
+    offense_counts = combined_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+    return offense_counts
+
 if attendance_file is not None:
-    # Read Attendance File
     try:
-        att_df = pd.read_excel(attendance_file, sheet_name=0)
+        att_df = pd.read_excel(attendance_file, sheet_name=0, dtype=str)
     except:
-        att_df = pd.read_csv(attendance_file)
+        att_df = pd.read_csv(attendance_file, dtype=str)
 
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     id_col = att_df.columns[0]
     name_col = att_df.columns[1]
 
-    # Clean IDs
     att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
-    # Assign Target Hours via Roster map
+    # ==========================================
+    # MAGIC FIX: YAHAN EXCLUDE WALE GAYAB HO JAYENGE
+    # ==========================================
+    if exclude_list:
+        att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
+        att_df.reset_index(drop=True, inplace=True)
+
     if roster_hours_map:
         att_df['Working Hours'] = att_df['Clean_ID'].map(roster_hours_map).fillna("9 Hours")
     else:
         att_df['Working Hours'] = "9 Hours"
 
-    # DIRECT OVERRIDE: Agar roster fail ho bhi jaye toh ye hardcoded list kaam karegi
-    # Main ne screenshot wale 203875184 ko bhi add kar diya hai just in case
-    known_7_ids = ['203875180', '203875184'] 
-    att_df.loc[att_df['Clean_ID'].isin(known_7_ids), 'Working Hours'] = "7 Hours"
+    if manual_ids_list:
+        att_df.loc[att_df['Clean_ID'].isin(manual_ids_list), 'Working Hours'] = "7 Hours"
+        
+    att_df.loc[att_df['Clean_ID'] == '203875184', 'Working Hours'] = "7 Hours"
 
     ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
     punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
@@ -173,7 +191,7 @@ if attendance_file is not None:
 
     def parse_time(time_val):
         if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]: return None
-        for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"]:
+        for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%H:%M:%S"]:
             try: return datetime.strptime(str(time_val).strip(), fmt).time()
             except: continue
         return None
@@ -182,20 +200,20 @@ if attendance_file is not None:
         punches = [parse_time(row.get(c)) for c in punch_cols]
         punches = [p for p in punches if p is not None]
         total_punches = len(punches)
-        target = row.get('Working Hours', '9 Hours')
         
-        # 12 Mins Buffer
-        if '7' in str(target):
-            min_mins = 408  # 6h 48m
-            max_mins = 432  # 7h 12m
+        target_str = str(row.get('Working Hours', '9 Hours'))
+        
+        if '7' in target_str:
+            min_mins = 408
+            max_mins = 432
         else:
-            min_mins = 528  # 8h 48m
-            max_mins = 552  # 9h 12m
+            min_mins = 528
+            max_mins = 552
 
         if total_punches == 0:
-            return pd.Series([0, target, "00:00", "OK", "Absent", "Clean"])
+            return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
         if total_punches == 1:
-            return pd.Series([1, target, "N/A", "Error", "Single Scan Only", "Mispunch"])
+            return pd.Series([1, target_str, "N/A", "Error", "Single Scan Only", "Mispunch"])
 
         dummy_date = datetime(2026, 1, 1)
         total_secs = 0
@@ -210,13 +228,13 @@ if attendance_file is not None:
         
         if total_punches % 2 == 0:
             if min_mins <= eff_mins <= max_mins:
-                return pd.Series([total_punches, target, hours_str, "OK", "Complete Within Window", "Clean"])
+                return pd.Series([total_punches, target_str, hours_str, "OK", "Complete Within Window", "Clean"])
             elif eff_mins < min_mins:
-                return pd.Series([total_punches, target, hours_str, "Error", f"Under Time", "Defaulter Hours"])
+                return pd.Series([total_punches, target_str, hours_str, "Error", f"Under Time", "Defaulter Hours"])
             else:
-                return pd.Series([total_punches, target, hours_str, "Error", f"Over Time", "Defaulter Hours"])
+                return pd.Series([total_punches, target_str, hours_str, "Error", f"Over Time", "Defaulter Hours"])
         else:
-            return pd.Series([total_punches, target, hours_str, "Error", "Incomplete Punches", "Mispunch"])
+            return pd.Series([total_punches, target_str, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
     analysis_df = att_df.apply(analyze_row, axis=1)
     analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Mispunch Category', 'Issue Type']
@@ -231,19 +249,24 @@ if attendance_file is not None:
         'P.Soft ID': att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
         'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
-    base_info['Repeated Offender'] = base_info.groupby('P.Soft ID').cumcount() + 1
+    
+    temp_combined = pd.concat([base_info, analysis_df], axis=1)
+    today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
+    
+    historical_counts = update_and_get_offenders_history(today_offenders)
+    
+    base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
+    base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
     
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
-    repeated = final_df[final_df['Repeated Offender'] > 1]
+    repeated = final_df[final_df['Total Offenses'] > 1]
 
-    # Initialize State
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "all"
 
-    # View Buttons Section
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     
@@ -263,7 +286,6 @@ if attendance_file is not None:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
         if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
 
-    # Filter Data Based on Clicked Tile/Button
     display_df = final_df.copy()
     if st.session_state.selected_view == "mispunches":
         display_df = mispunches
@@ -285,5 +307,12 @@ if attendance_file is not None:
     display_df = display_df.drop(columns=['Issue Type'])
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-    csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download Final Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary")
+    st.markdown("---")
+    down_col1, down_col2 = st.columns(2)
+    with down_col1:
+        csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Download Today's Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary", use_container_width=True)
+    with down_col2:
+        if os.path.exists(HISTORY_FILE):
+            hist_csv = pd.read_csv(HISTORY_FILE).to_csv(index=False).encode('utf-8')
+            st.download_button("📂 Download Master Offenders History (Backup)", hist_csv, f"Master_Offenders_History.csv", "text/csv", use_container_width=True)
