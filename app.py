@@ -29,11 +29,11 @@ if bin_str:
         footer {{visibility: hidden;}}
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
+            # EXACT MAPPING RESTORED: P.Soft ID gets Clean_ID, Employee Name gets actual Name column
+base_info_df = pd.DataFrame({
+    'P.Soft ID': df['Clean_ID'],
+    'Employee Name': df[name_col].astype(str).str.replace(r'\.0$', '', regex=True)
+})
         .block-container {{
             background-color: rgba(255, 255, 255, 0.92);
             padding: 2rem;
