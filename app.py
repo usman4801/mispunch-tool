@@ -185,7 +185,7 @@ if attendance_file is not None:
             r_id = str(r[ros_id_col]).replace('.0', '').strip()
             row_full_text = " ".join([str(val) for val in r.values]).lower()
             
-            if '7 hours' in row_full_text or '7hr' in row_full_text or ' 7 ' in row_full_text:
+            if '7' in row_full_text:
                 hours_map[r_id] = "7 Hours"
             else:
                 hours_map[r_id] = "9 Hours"
@@ -203,10 +203,10 @@ if attendance_file is not None:
     df = att_df.copy()
     df['Shift_Roster'] = df['Clean_ID'].map(shift_map).fillna("Night" if "Night" in upload_mode else "Day")
     
-    # Safe mapping without type conflicts
     mapped_hours = df['Clean_ID'].map(hours_map)
     df['Working Hours'] = [str(val) if pd.notna(val) else "9 Hours" for val in mapped_hours]
     
+    # Direct safety override for 7-hour IDs
     known_7_hours_ids = ['203875180']
     df.loc[df['Clean_ID'].isin(known_7_hours_ids), 'Working Hours'] = "7 Hours"
 
