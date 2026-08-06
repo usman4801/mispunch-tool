@@ -97,7 +97,7 @@ st.sidebar.markdown("---")
 st.sidebar.header("🚫 Exclude / Ignore Employees")
 st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 10PM - 8AM shift wale).")
 # Default IDs jo aapne screenshot mein di hain
-exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 204043092, 203160007, 113015344")
+exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203073699, 204043092, 203160007, 113015344")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
 col1, col2 = st.columns([3, 7])
