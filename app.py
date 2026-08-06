@@ -131,17 +131,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
 
-@st.cache_data
-def load_permanent_roster():
-    try:
-        ros = pd.read_excel('HC.xlsx', sheet_name='Roster')
-        ros.columns = [str(c).strip() for c in ros.columns.tolist()]
-        return ros
-    except Exception:
-        return None
-
-ros_df = load_permanent_roster()
-
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
         return None
@@ -174,33 +163,30 @@ if attendance_file is not None:
 
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
+    # Optional Roster integration if HC.xlsx exists, otherwise default safely
+    ros_df = None
+    try:
+        ros_df = pd.read_excel('HC.xlsx', sheet_name='Roster')
+        ros_df.columns = [str(c).strip() for c in ros_df.columns.tolist()]
+    except:
+        pass
+
     shift_map = {}
     hours_map = {}
     breaks_map = {}
     timings_map = {}
 
     if ros_df is not None:
-        ros_id_col = ros_df.columns[0] # P.Soft ID is in the first column of roster based on screenshot
-        
-        # Scan through roster columns to dynamically find shift, working hours, breaks, and timings
-        shift_col, hours_col, breaks_col, timings_col = None, None, None, None
-        for c in ros_df.columns:
-            c_low = str(c).lower()
-            if 'shift' in c_low and 'timing' not in c_low:
-                shift_col = c
-            elif 'hour' in c_low or 'working' in c_low:
-                hours_col = c
-            elif 'break' in c_low:
-                breaks_col = c
-            elif 'timing' in c_low:
-                timings_col = c
+        ros_id_col = ros_df.columns[0]
+        shift_col = next((c for c in ros_df.columns if 'shift' in c.lower() and 'timing' not in c.lower()), None)
+        breaks_col = next((c for c in ros_df.columns if 'break' in c.lower()), None)
+        timings_col = next((c for c in ros_df.columns if 'timing' in c.lower()), None)
 
         for _, r in ros_df.iterrows():
             r_id = str(r[ros_id_col]).replace('.0', '').strip()
-            
-            # Combine all values of this row into a single string to safely check if '7 Hours' or '7' exists anywhere for this ID
             row_full_text = " ".join([str(val) for val in r.values]).lower()
             
+            # Explicit check for 7 hours
             if '7' in row_full_text:
                 hours_map[r_id] = "7 Hours"
             else:
@@ -217,7 +203,7 @@ if attendance_file is not None:
                 timings_map[r_id] = str(r[timings_col]).strip()
 
     df = att_df.copy()
-    df['Shift_Roster'] = df['Clean_ID'].map(shift_map)
+    df['Shift_Roster'] = df['Clean_ID'].map(shift_map).fillna("Night" if "Night" in upload_mode else "Day")
     df['Working Hours'] = df['Clean_ID'].map(hours_map).fillna("9 Hours")
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
     df['Shift Timings'] = df['Clean_ID'].map(timings_map).fillna("")
@@ -241,25 +227,12 @@ if attendance_file is not None:
                 punches.append(val)
                 
         total_punches = len(punches)
-        
         shift_val = row.get('Shift_Roster')
         shift_timing_str = str(row.get('Shift Timings', '')).lower()
         
-        if pd.isna(shift_val):
-            if total_punches > 0:
-                first_p_hour = punches[0].hour
-                if first_p_hour >= 16 or first_p_hour < 5:
-                    shift_val = "Night"
-                elif 11 <= first_p_hour < 16:
-                    shift_val = "Mid"
-                else:
-                    shift_val = "Day"
-            else:
-                shift_val = "Day"
-
         working_hours_raw = str(row.get('Working Hours', '9')).lower()
         
-        # EXACT 12-MINUTE BUFFER LOGIC FOR 7 HOURS VS 9 HOURS WORKERS
+        # STRICT 7 HOURS vs 9 HOURS BUFFER CHECK (12 mins up/down)
         if '7' in working_hours_raw:
             target_hours = 7
             min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
@@ -281,7 +254,6 @@ if attendance_file is not None:
         if total_punches == 1:
             single_punch = punches[0]
             punch_total_mins = single_punch.hour * 60 + single_punch.minute
-            
             is_cross_midnight = "next day" in shift_timing_str or shift_val == "Night"
             
             if is_cross_midnight and (punch_total_mins <= 9 * 60 or punch_total_mins >= 21 * 60):
