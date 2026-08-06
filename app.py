@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Shift-Mode Controlled Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster-Aware Absolute Shift Intelligence</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -170,24 +170,29 @@ def analyze_mispunches(row, punch_cols, mode):
     total_punches = len(punches)
     
     working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
+    shift_timing_raw = str(row.get('Shift timings ', row.get('Shift timings', ''))).strip().lower()
     target_hours = 7 if '7' in working_hours_raw else 9
 
     if total_punches == 0:
         return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
 
-    # SELECTIVE MODE-AWARE SMART FILTERING FOR SINGLE SCANS:
+    # ABSOLUTE ROSTER-AWARE SINGLE SCAN INTELLIGENCE:
     if total_punches == 1:
         single_punch = punches[0]
         punch_total_mins = single_punch.hour * 60 + single_punch.minute
         
-        # If Day Shift mode is selected, ignore single punches falling precisely around 6:10 PM transition start (18:00 to 19:00)
-        if "Day Shift Only" in mode and (18 * 60 <= punch_total_mins <= 19 * 60):
+        # Check if the master Roster explicitly says this employee is on a Night/Evening shift (e.g. starting around 17:00 to 19:00)
+        is_roster_night_shift = any(t in shift_timing_raw for t in ['17:', '18:', '19:', 'pm', 'evening', 'night'])
+        
+        # If employee's roster shift is night/evening and their single scan falls between 17:00 and 19:30 (covering 17:57 etc.), treat as valid shift start!
+        if is_roster_night_shift and (17 * 60 <= punch_total_mins <= 19 * 60 + 30):
             return pd.Series([1, "N/A", "OK", "Night Shift Start Check-in (Ignored)", "Clean"])
             
-        # If Night Shift mode is selected, ignore single punches that belong to morning start (07:30 to 09:00)
-        elif "Night Shift Only" in mode and (7 * 60 + 30 <= punch_total_mins <= 9 * 60):
-            return pd.Series([1, "N/A", "OK", "Day Shift Start Check-in (Ignored)", "Clean"])
-            
+        # If user explicitly selected Night Shift mode, also honor 17:00 to 19:30 single scans as valid
+        if "Night Shift Only" in mode and (17 * 60 <= punch_total_mins <= 19 * 60 + 30):
+            return pd.Series([1, "N/A", "OK", "Night Shift Start Check-in (Ignored)", "Clean"])
+
+        # If Day Shift mode is selected and employee arrived in morning (07:00 - 09:30) with only 1 punch, it is a genuine mispunch
         return pd.Series([1, "N/A", "Error", "Single Scan Only (Missing Shift OUT/Breaks)", "Mispunch"])
 
     is_last_punch_an_in = False
