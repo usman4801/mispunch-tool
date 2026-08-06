@@ -9,7 +9,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Helper to get background
 def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
@@ -20,7 +19,6 @@ def get_base64_of_bin_file(bin_file):
 
 bin_str = get_base64_of_bin_file('bg.jpeg.jpeg')
 
-# CSS Styling
 st.markdown(
     f"""
     <style>
@@ -68,17 +66,14 @@ st.markdown(
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 st.markdown("---")
 
-# ID Cleaner
 def clean_id(val):
     try: return str(int(float(val))).strip()
     except: return str(val).strip().lower()
 
-# Sidebar Setup
 st.sidebar.header("⚙️ Configuration")
 manual_7_ids = st.sidebar.text_area("Paste 7-Hour IDs", placeholder="e.g., 204299912")
 manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
-# Excluded Employees List (Ab isme naya banda bhi shamil hai)
 exclude_list = ['203160008', '204043092', '203160007', '113015344', '203073699']
 
 attendance_file = st.file_uploader("Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
@@ -100,33 +95,33 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# History Database
 HISTORY_FILE = 'offenders_history.csv'
 def update_history(current_offenders_df):
     today = datetime.now().strftime("%Y-%m-%d")
-    hist = pd.read_csv(HISTORY_FILE, dtype=str) if os.path.exists(HISTORY_FILE) else pd.DataFrame(columns=['Date', 'P.Soft ID', 'Issue Type'])
-    new_rec = current_offenders_df[['P.Soft ID', 'Issue Type']].copy()
-    new_rec['Date'] = today
-    combined = pd.concat([hist, new_rec]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
-    combined.to_csv(HISTORY_FILE, index=False)
-    return combined.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+    hist = pd.read_csv(HISTORY_FILE, dtype=str) if os.path.exists(HISTORY_FILE) else pd.DataFrame(columns=['Date', 'Clean_ID', 'Issue Type'])
+    if not current_offenders_df.empty:
+        new_rec = current_offenders_df[['Clean_ID', 'Issue Type']].copy()
+        new_rec['Date'] = today
+        combined = pd.concat([hist, new_rec]).drop_duplicates(subset=['Date', 'Clean_ID', 'Issue Type'])
+        combined.to_csv(HISTORY_FILE, index=False)
+        return combined.groupby('Clean_ID').size().reset_index(name='Total Offenses')
+    return pd.DataFrame(columns=['Clean_ID', 'Total Offenses'])
 
 if attendance_file:
     att_df = pd.read_excel(attendance_file, sheet_name=0, dtype=str) if '.xls' in attendance_file.name else pd.read_csv(attendance_file, dtype=str)
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     att_df['Clean_ID'] = att_df[att_df.columns[0]].apply(clean_id)
 
-    # MAGIC FIX: Exclude here
     att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
 
     att_df['Working Hours'] = att_df['Clean_ID'].map(roster_hours_map).fillna("9 Hours")
     att_df.loc[att_df['Clean_ID'].isin(manual_ids_list), 'Working Hours'] = '7 Hours'
     att_df.loc[att_df['Clean_ID'] == '203875184', 'Working Hours'] = '7 Hours'
 
-    punch_cols = [c for c in att_df.columns if not any(k in c.lower() for k in ['id', 'name', 'psoft', 'working'])]
+    punch_cols = [c for c in att_df.columns if not any(k in c.lower() for k in ['id', 'name', 'psoft', 'working', 'clean_id'])]
     
     def analyze(row):
-        punches = [datetime.strptime(str(row[c]).strip(), "%H:%M:%S").time() for c in punch_cols if pd.notna(row[c])]
+        punches = [datetime.strptime(str(row[c]).strip(), "%H:%M:%S").time() for c in punch_cols if pd.notna(row[c]) and str(row[c]).strip() != ""]
         target = '7' in str(row.get('Working Hours', '9'))
         min_m = 408 if target else 528
         max_m = 432 if target else 552
@@ -140,16 +135,13 @@ if attendance_file:
     results = att_df.apply(analyze, axis=1)
     att_df[['Total', 'Status', 'Issue Type']] = results
     
-    # History Merge
     history_counts = update_history(att_df[att_df['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])])
     att_df = att_df.merge(history_counts, on='Clean_ID', how='left').fillna(0)
 
-    # Views
     mispunches = att_df[att_df['Issue Type'] == 'Mispunch']
     defaulters = att_df[att_df['Issue Type'] == 'Defaulter Hours']
     repeated = att_df[att_df['Total Offenses'] > 1]
     
-    # Dashboard
     c1, c2, c3, c4 = st.columns(4)
     if c1.button("👁️ View All", use_container_width=True): st.session_state.v = "all"
     if c2.button("🔄 Repeated", use_container_width=True): st.session_state.v = "repeated"
