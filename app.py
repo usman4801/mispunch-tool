@@ -131,6 +131,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
 
+# POLISHED ROSTER LOADER WITH STRICT CLEANING
 @st.cache_data
 def load_permanent_roster():
     try:
@@ -194,11 +195,11 @@ if attendance_file is not None:
                 elif 'mid' in s_val: shift_map[r_id] = "Mid"
                 else: shift_map[r_id] = "Day"
             if hours_col:
-                hours_map[r_id] = str(r[hours_col])
+                hours_map[r_id] = str(r[hours_col]).strip()
             if breaks_col:
-                breaks_map[r_id] = str(r[breaks_col])
+                breaks_map[r_id] = str(r[breaks_col]).strip()
             if timings_col:
-                timings_map[r_id] = str(r[timings_col])
+                timings_map[r_id] = str(r[timings_col]).strip()
 
     df = att_df.copy()
     df['Shift_Roster'] = df['Clean_ID'].map(shift_map)
@@ -241,17 +242,17 @@ if attendance_file is not None:
             else:
                 shift_val = "Day"
 
-        working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
+        working_hours_raw = str(row.get('Working Hours', '9')).strip()
         
-        # EXACT 12-MINUTE BUFFER LOGIC FOR BOTH 7 HOURS AND 9 HOURS WORKERS
-        if '7' in working_hours_raw:
+        # POLISHED & BULLETPROOF 12-MINUTE BUFFER LOGIC FOR BOTH 7 AND 9 HOURS
+        if working_hours_raw.startswith('7') or '7' in working_hours_raw:
             target_hours = 7
-            min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
-            max_allowed_mins = (7 * 60) + 12  # 432 mins (7h 12m)
+            min_allowed_mins = (7 * 60) - 12  # Exactly 6h 48m (408 mins)
+            max_allowed_mins = (7 * 60) + 12  # Exactly 7h 12m (432 mins)
         else:
             target_hours = 9
-            min_allowed_mins = (9 * 60) - 12  # 528 mins (8h 48m)
-            max_allowed_mins = (9 * 60) + 12  # 552 mins (9h 12m)
+            min_allowed_mins = (9 * 60) - 12  # Exactly 8h 48m (528 mins)
+            max_allowed_mins = (9 * 60) + 12  # Exactly 9h 12m (552 mins)
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
