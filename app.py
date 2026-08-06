@@ -131,7 +131,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
 
-# POLISHED ROSTER LOADER WITH STRICT CLEANING
 @st.cache_data
 def load_permanent_roster():
     try:
@@ -181,21 +180,37 @@ if attendance_file is not None:
     timings_map = {}
 
     if ros_df is not None:
-        ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
-        shift_col = next((c for c in ros_df.columns if 'shift' in c.lower() and 'timing' not in c.lower()), None)
-        hours_col = next((c for c in ros_df.columns if 'working' in c.lower() or 'hour' in c.lower()), None)
-        breaks_col = next((c for c in ros_df.columns if 'break' in c.lower()), None)
-        timings_col = next((c for c in ros_df.columns if 'timing' in c.lower()), None)
+        ros_id_col = ros_df.columns[0] # P.Soft ID is in the first column of roster based on screenshot
+        
+        # Scan through roster columns to dynamically find shift, working hours, breaks, and timings
+        shift_col, hours_col, breaks_col, timings_col = None, None, None, None
+        for c in ros_df.columns:
+            c_low = str(c).lower()
+            if 'shift' in c_low and 'timing' not in c_low:
+                shift_col = c
+            elif 'hour' in c_low or 'working' in c_low:
+                hours_col = c
+            elif 'break' in c_low:
+                breaks_col = c
+            elif 'timing' in c_low:
+                timings_col = c
 
         for _, r in ros_df.iterrows():
             r_id = str(r[ros_id_col]).replace('.0', '').strip()
+            
+            # Combine all values of this row into a single string to safely check if '7 Hours' or '7' exists anywhere for this ID
+            row_full_text = " ".join([str(val) for val in r.values]).lower()
+            
+            if '7' in row_full_text:
+                hours_map[r_id] = "7 Hours"
+            else:
+                hours_map[r_id] = "9 Hours"
+
             if shift_col:
                 s_val = str(r[shift_col]).strip().lower()
                 if 'night' in s_val: shift_map[r_id] = "Night"
                 elif 'mid' in s_val: shift_map[r_id] = "Mid"
                 else: shift_map[r_id] = "Day"
-            if hours_col:
-                hours_map[r_id] = str(r[hours_col]).strip()
             if breaks_col:
                 breaks_map[r_id] = str(r[breaks_col]).strip()
             if timings_col:
@@ -242,17 +257,17 @@ if attendance_file is not None:
             else:
                 shift_val = "Day"
 
-        working_hours_raw = str(row.get('Working Hours', '9')).strip()
+        working_hours_raw = str(row.get('Working Hours', '9')).lower()
         
-        # POLISHED & BULLETPROOF 12-MINUTE BUFFER LOGIC FOR BOTH 7 AND 9 HOURS
-        if working_hours_raw.startswith('7') or '7' in working_hours_raw:
+        # EXACT 12-MINUTE BUFFER LOGIC FOR 7 HOURS VS 9 HOURS WORKERS
+        if '7' in working_hours_raw:
             target_hours = 7
-            min_allowed_mins = (7 * 60) - 12  # Exactly 6h 48m (408 mins)
-            max_allowed_mins = (7 * 60) + 12  # Exactly 7h 12m (432 mins)
+            min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
+            max_allowed_mins = (7 * 60) + 12  # 432 mins (7h 12m)
         else:
             target_hours = 9
-            min_allowed_mins = (9 * 60) - 12  # Exactly 8h 48m (528 mins)
-            max_allowed_mins = (9 * 60) + 12  # Exactly 9h 12m (552 mins)
+            min_allowed_mins = (9 * 60) - 12  # 528 mins (8h 48m)
+            max_allowed_mins = (9 * 60) + 12  # 552 mins (9h 12m)
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
