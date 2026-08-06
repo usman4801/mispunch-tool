@@ -169,20 +169,23 @@ if attendance_file is not None:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
 
     col_names = att_df.columns.tolist()
+    
+    # Exact robust column detection for Psoft ID and Employee Name
     id_col = None
     name_col = None
 
     for col in col_names:
-        col_l = col.lower()
-        if ('psoft' in col_l or 'p.soft' in col_l or 'id' in col_l) and id_col is None:
+        c_low = col.lower()
+        if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
             id_col = col
-        elif ('name' in col_l or 'employee' in col_l) and name_col is None:
+        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
             name_col = col
 
+    # Fallback based on standard index position if headers vary
     if id_col is None:
-        id_col = col_names[1] if len(col_names) > 1 else col_names[0]
+        id_col = col_names[0] if len(col_names) > 0 else None
     if name_col is None:
-        name_col = col_names[3] if len(col_names) > 3 else col_names[0]
+        name_col = col_names[2] if len(col_names) > 2 else (col_names[1] if len(col_names) > 1 else col_names[0])
 
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
@@ -213,7 +216,7 @@ if attendance_file is not None:
     df['Working Hours'] = df['Clean_ID'].map(hours_map).fillna("9 Hours")
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
 
-    ignore_list = [id_col.lower(), name_col.lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
+    ignore_list = [str(id_col).lower(), str(name_col).lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
     
     punch_cols = []
     for col in col_names:
@@ -250,11 +253,11 @@ if attendance_file is not None:
         target_hours = 7 if '7' in working_hours_raw else 9
         
         if target_hours == 9:
-            min_allowed_mins = 527  # 8 hours 47 mins
-            max_allowed_mins = 552  # 9 hours 12 mins
+            min_allowed_mins = 527  
+            max_allowed_mins = 552  
         else:
-            min_allowed_mins = 407  # Proportional for 7 hours (~6h 47m)
-            max_allowed_mins = 432  # Proportional for 7 hours (~7h 12m)
+            min_allowed_mins = 407  
+            max_allowed_mins = 432  
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
