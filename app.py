@@ -46,7 +46,7 @@ try:
             font-weight: bold !important;
         }}
         div[data-testid="stSelectbox"] label p {{
-            font-size: 18px !important;
+            font-size: 16px !important;
             font-weight: 800 !important;
             color: #000000 !important;
         }}
@@ -104,16 +104,29 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Strict ID-Name Validation & Clean Shift-Aware Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster & Shift-Mode Controlled Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-col_wh, col_space = st.columns([1.5, 8.5])
+# Controls Section: Warehouse & Shift Mode Selection
+col_wh, col_mode, col_space = st.columns([2, 4, 4])
 with col_wh:
     selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"], index=0)
+
+with col_mode:
+    upload_mode = st.selectbox(
+        "Select Uploaded Data Shift / Mode", 
+        options=[
+            "Full Day / 24 Hours Data", 
+            "Day Shift Only (e.g., 08:00 AM - 06:00 PM)", 
+            "Night Shift Only (e.g., 06:00 PM - 04:00 AM)",
+            "Mid Shift Only"
+        ], 
+        index=1
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -145,7 +158,7 @@ def format_time_clean(time_val):
         return t.strftime("%H:%M")
     return ""
 
-def analyze_mispunches(row, punch_cols):
+def analyze_mispunches(row, punch_cols, mode):
     punches = []
     actual_punch_positions = []
     
@@ -163,8 +176,20 @@ def analyze_mispunches(row, punch_cols):
     if total_punches == 0:
         return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
 
+    # SELECTIVE MODE-AWARE SMART FILTERING FOR SINGLE SCANS:
     if total_punches == 1:
-        return pd.Series([1, "N/A", "OK", "Shift Transition Start (Clean)", "Clean"])
+        single_punch = punches[0]
+        
+        # If Day Shift mode is selected, ignore single punches that belong to evening/night transition start (around 17:00 - 19:00)
+        if "Day Shift Only" in mode and (17 <= single_punch.hour <= 19):
+            return pd.Series([1, "N/A", "OK", "Night Shift Start Check-in (Ignored)", "Clean"])
+            
+        # If Night Shift mode is selected, ignore single punches that belong to morning start (around 07:00 - 09:00)
+        elif "Night Shift Only" in mode and (7 <= single_punch.hour <= 9):
+            return pd.Series([1, "N/A", "OK", "Day Shift Start Check-in (Ignored)", "Clean"])
+            
+        # Otherwise, if it's a single scan during the selected shift, it's a genuine mispunch
+        return pd.Series([1, "N/A", "Error", "Single Scan Only (Missing Shift OUT/Breaks)", "Mispunch"])
 
     is_last_punch_an_in = False
     if total_punches > 0:
@@ -269,7 +294,7 @@ if attendance_file is not None:
         </div>
     """, unsafe_allow_html=True)
     
-    analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols), axis=1)
+    analysis_df = df.apply(lambda row: analyze_mispunches(row, punch_cols, upload_mode), axis=1)
     analysis_df.columns = ['Total Punches', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
     punches_df_cleaned = pd.DataFrame()
@@ -279,16 +304,12 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # EXTRACT RAW ID AND NAME SAFELY
     raw_ids = df[id_col]
     raw_names = df[name_col]
 
-    # CLEAN P.SOFT ID: Remove floating point '.0' if present and convert to string
     cleaned_ids = raw_ids.astype(str).str.replace(r'\.0$', '', regex=True)
     cleaned_names = raw_names.astype(str)
 
-    # AUTO-CORRECTION / SWAP PREVENTION: 
-    # If ID column accidentally contains comma (names usually formatted as Last,First) or text, swap them back!
     if cleaned_ids.str.contains(',').any() or cleaned_ids.str.contains(r'[a-zA-Z]').any():
         temp = cleaned_ids
         cleaned_ids = cleaned_names.str.replace(r'\.0$', '', regex=True)
