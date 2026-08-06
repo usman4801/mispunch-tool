@@ -172,20 +172,20 @@ if attendance_file is not None:
     id_col = None
     name_col = None
 
-    # Fixed column mapping logic to prevent swapping
+    # Precise column detection to prevent swapping ID and Name
     for col in col_names:
-        col_l = col.lower()
-        if ('psoft' in col_l or 'p.soft' in col_l) and id_col is None:
+        c_low = col.lower()
+        if ('psoft' in c_low or 'p.soft' in c_low) and id_col is None:
             id_col = col
-        elif ('name' in col_l or 'employee' in col_l) and name_col is None:
+        elif ('name' in c_low or 'employee' in c_low) and name_col is None:
             name_col = col
 
+    # Fallback to precise indices if headers differ
     if id_col is None:
         id_col = col_names[0] if len(col_names) > 0 else col_names[1]
     if name_col is None:
-        name_col = col_names[2] if len(col_names) > 2 else col_names[3]
+        name_col = col_names[2] if len(col_names) > 2 else (col_names[3] if len(col_names) > 3 else col_names[1])
 
-    # Clean ID and remove .0 completely
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     shift_map = {}
@@ -220,7 +220,7 @@ if attendance_file is not None:
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
     df['Shift Timings'] = df['Clean_ID'].map(timings_map).fillna("")
 
-    ignore_list = [id_col.lower(), name_col.lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
+    ignore_list = [str(id_col).lower(), str(name_col).lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
     
     punch_cols = []
     for col in col_names:
@@ -459,6 +459,8 @@ if attendance_file is not None:
         ]
 
     column_config_settings = {
+        "P.Soft ID": st.column_config.TextColumn("P.Soft ID", width="medium", pinned=True),
+        "Employee Name": st.column_config.TextColumn("Employee Name", width="large", pinned=True),
         "Repeated\nOffender": st.column_config.NumberColumn("Repeated\nOffender", width="medium", format="%d"),
         "Total Punches": st.column_config.NumberColumn("Total\nPunches", width="small"),
         "No. of\nWorking Hours": st.column_config.TextColumn("No. of\nWorking Hours", width="medium"),
