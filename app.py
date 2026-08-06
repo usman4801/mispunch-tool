@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Outcome-Based Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster & Dynamic Hour-Target Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -158,12 +158,13 @@ def format_time_clean(time_val):
     return ""
 
 def get_shift_type(shift_timing_raw):
-    s = str(shift_timing_raw).lower()
-    if any(x in s for x in ['night', '18:00', '19:00', 'pm']): 
+    s = str(shift_timing_raw).strip().lower()
+    if 'night' in s:
         return "Night"
-    if any(x in s for x in ['mid', '12:00', '13:00']): 
+    elif 'mid' in s:
         return "Mid"
-    return "Day"
+    else:
+        return "Day"
 
 def analyze_mispunches(row, punch_cols, mode):
     punches = []
@@ -177,6 +178,11 @@ def analyze_mispunches(row, punch_cols, mode):
     shift_raw = str(row.get('Shift timings ', row.get('Shift timings', '')))
     shift_val = get_shift_type(shift_raw)
     
+    # Dynamic Target Hours based on Roster's 'Working Hours' column
+    working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
+    target_hours = 7 if '7' in working_hours_raw else 9
+    required_seconds = target_hours * 3600
+
     breaks_raw = str(row.get('No of breaks ', '0')).strip()
     try:
         break_mins = int(''.join(filter(str.isdigit, breaks_raw)))
@@ -186,7 +192,6 @@ def analyze_mispunches(row, punch_cols, mode):
     if total_punches == 0:
         return pd.Series([0, shift_val, "00:00", "OK", "Absent", "Clean"])
 
-    # Single Scan Logic for Shift modes
     if total_punches == 1:
         single_punch = punches[0]
         punch_total_mins = single_punch.hour * 60 + single_punch.minute
@@ -208,11 +213,11 @@ def analyze_mispunches(row, punch_cols, mode):
     effective_seconds = total_duration_seconds - (break_mins * 60)
     hours_str = f"{int(total_duration_seconds // 3600):02d}:{int((total_duration_seconds % 3600) // 60):02d}"
     
-    # OUTCOME-BASED CLEAN LOGIC (No strict sequence error for even punches if hours are complete)
-    if total_punches % 2 == 0 and effective_seconds >= 32400:
+    # Check against dynamic required seconds (7h or 9h)
+    if total_punches % 2 == 0 and effective_seconds >= required_seconds:
         return pd.Series([total_punches, shift_val, hours_str, "OK", "Complete", "Clean"])
     elif total_punches % 2 == 0:
-        return pd.Series([total_punches, shift_val, hours_str, "Error", "Short Working Hours", "Defaulter Hours"])
+        return pd.Series([total_punches, shift_val, hours_str, "Error", f"Short Working Hours (< {target_hours}h)", "Defaulter Hours"])
     else:
         return pd.Series([total_punches, shift_val, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
