@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import base64
+import io
 
 # Page Config
 st.set_page_config(
@@ -134,8 +135,10 @@ attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", typ
 @st.cache_data
 def load_permanent_roster():
     try:
-        return pd.read_excel('HC.xlsx', sheet_name='Roster')
-    except Exception:
+        ros = pd.read_excel('HC.xlsx', sheet_name='Roster')
+        ros.columns = [str(c).strip() for c in ros.columns.tolist()]
+        return ros
+    except Exception as e:
         return None
 
 ros_df = load_permanent_roster()
@@ -158,8 +161,7 @@ def format_time_clean(time_val):
     return ""
 
 def get_shift_type(row):
-    # Check attendance file column first, then roster column
-    for col_name in ['Shift', 'Shift timings ', 'Shift timings']:
+    for col_name in ['Shift timings', 'Shift timings ', 'Shift']:
         val = row.get(col_name)
         if pd.notna(val):
             s = str(val).strip().lower()
@@ -179,15 +181,13 @@ def analyze_mispunches(row, punch_cols, mode):
             punches.append(val)
             
     total_punches = len(punches)
-    
     shift_val = get_shift_type(row)
     
-    # Dynamic Target Hours (7h or 9h)
     working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
     target_hours = 7 if '7' in working_hours_raw else 9
     required_seconds = target_hours * 3600
 
-    breaks_raw = str(row.get('No of breaks ', '0')).strip()
+    breaks_raw = str(row.get('No of breaks ', row.get('No of breaks', '0'))).strip()
     try:
         break_mins = int(''.join(filter(str.isdigit, breaks_raw)))
     except:
@@ -237,7 +237,13 @@ if attendance_file is not None:
         att_id_col = next((c for c in att_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), att_df.columns[0])
         ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
         
-        df = pd.merge(att_df, ros_df[['Psoft ID', 'Working Hours', 'No of breaks ', 'Shift timings ']], left_on=att_id_col, right_on=ros_id_col, how='left')
+        # Merge roster info dynamically
+        ros_cols_to_use = [ros_id_col]
+        for col_candidate in ['Working Hours', 'No of breaks', 'No of breaks ', 'Shift timings', 'Shift timings ']:
+            if col_candidate in ros_df.columns and col_candidate not in ros_cols_to_use:
+                ros_cols_to_use.append(col_candidate)
+                
+        df = pd.merge(att_df, ros_df[ros_cols_to_use], left_on=att_id_col, right_on=ros_id_col, how='left')
     else:
         df = att_df
 
@@ -304,10 +310,6 @@ if attendance_file is not None:
         'Employee Name': cleaned_names
     })
     
-    for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'Shift timings ']:
-        if opt_col in df.columns:
-            base_info_df[opt_col] = df[opt_col]
-        
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     temp_combined_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
@@ -436,3 +438,19 @@ if attendance_file is not None:
 
     st.subheader(f"{current_title} ({len(active_display_df)} Records)")
     st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # DOWNLOAD BUTTON FEATURE RESTORED
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        final_df.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Attendance_Analysis')
+    processed_data = output.getvalue()
+
+    st.download_button(
+        label="📥 Download Full Analyzed Report (Excel)",
+        data=processed_data,
+        file_name=f"Attendance_Analysis_{selected_warehouse}_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary"
+    )
