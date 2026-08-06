@@ -9,7 +9,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Function to encode JPEG image file
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -22,7 +21,6 @@ try:
     st.markdown(
         f"""
         <style>
-        /* Top Header, Menu & Footer Hide */
         #MainMenu {{visibility: hidden;}}
         header {{visibility: hidden;}}
         footer {{visibility: hidden;}}
@@ -35,14 +33,12 @@ try:
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.90);
+            background-color: rgba(255, 255, 255, 0.92);
             padding: 2rem;
             border-radius: 12px;
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
-        
-        /* WAREHOUSE BOX CUSTOM STYLING */
         div[data-baseweb="select"] {{
             border: 2px solid #000000 !important;
             border-radius: 6px !important;
@@ -54,13 +50,10 @@ try:
             font-weight: 800 !important;
             color: #000000 !important;
         }}
-
         div[data-testid="stDataFrame"] th {{
             white-space: pre-wrap !important;
             word-wrap: break-word !important;
         }}
-
-        /* STYLISH COLORFUL FILE UPLOADER BOX */
         div[data-testid="stFileUploader"] {{
             position: relative;
             background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
@@ -68,37 +61,7 @@ try:
             padding: 18px !important;
             border-radius: 12px !important;
             box-shadow: 0 4px 15px rgba(0, 97, 255, 0.08);
-            transition: all 0.3s ease;
         }}
-        div[data-testid="stFileUploader"] small {{
-            display: none !important;
-        }}
-        div[data-testid="stFileUploader"]::after {{
-            content: "";
-            position: absolute;
-            right: 25px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 50px;
-            height: 50px;
-            background-image: url('data:image/svg+xml;utf8,<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h20l12 12v40a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4z" fill="%23f8fafc" stroke="%2394a3b8" stroke-width="2"/><path d="M36 4v12h12" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linejoin="round"/><rect x="18" y="26" width="28" height="18" rx="2" fill="%2322c55e"/><path d="M18 32h28M18 38h28M27 26v18M37 26v18" stroke="%23fff" stroke-width="2"/><rect x="32" y="42" width="28" height="16" rx="4" fill="%238b5cf6"/><text x="46" y="53.5" fill="%23fff" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">XLSX</text></svg>');
-            background-size: contain;
-            background-repeat: no-repeat;
-            pointer-events: none;
-        }}
-        div[data-testid="stFileUploader"]:hover {{
-            border-color: #8e2de2 !important;
-            box-shadow: 0 6px 20px rgba(142, 45, 226, 0.15);
-        }}
-        div[data-testid="stFileUploader"] section {{
-            background-color: transparent !important;
-        }}
-        div[data-testid="stFileUploader"] label p {{
-            font-size: 16px !important;
-            font-weight: 700 !important;
-            color: #0e1117 !important;
-        }}
-
         .custom-header-container {{
             display: flex;
             align-items: center;
@@ -136,31 +99,30 @@ try:
 except Exception:
     pass
 
-# --- MAIN PAGE COLORFUL HEADER ---
 st.markdown("""
     <div class="custom-header-container">
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Real-time multi-shift, break policy & 7/9 hours intelligence</div>
+            <div class="custom-subtitle-text">Roster & Attendance Integration Engine</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# Warehouse Box
 col_wh, col_space = st.columns([1.5, 8.5])
 with col_wh:
-    selected_warehouse = st.selectbox(
-        "Warehouse",
-        options=["AUH1", "DXB5", "DXB3"],
-        index=0
-    )
+    selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"], index=0)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload Excel/CSV File", type=["xlsx", "xls", "csv"])
+# Two file uploaders: Roster and Attendance Punches
+col_up1, col_up2 = st.columns(2)
+with col_up1:
+    roster_file = st.file_uploader("Upload Roster File (HC.xlsx)", type=["xlsx", "xls", "csv"], key="roster_up")
+with col_up2:
+    attendance_file = st.file_uploader("Upload Attendance / Punches File", type=["xlsx", "xls", "csv"], key="attendance_up")
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
@@ -184,7 +146,7 @@ def analyze_mispunches(row, punch_cols):
     actual_punch_positions = []
     
     for idx, col in enumerate(punch_cols):
-        val = parse_time(row[col])
+        val = parse_time(row.get(col))
         if val is not None:
             punches.append(val)
             actual_punch_positions.append(idx)
@@ -197,22 +159,15 @@ def analyze_mispunches(row, punch_cols):
     target_hours = 7 if '7' in working_hours_raw else 9
     expected_punches = 6 if ('2' in break_policy or '30' in break_policy or 'two' in break_policy) else 4
 
-    status = "OK"
-    category = "Complete"
-    working_hours_str = "N/A"
-    issue_type = "Clean"
-    
+    if total_punches == 0:
+        return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
+
     is_last_punch_an_in = False
     if total_punches > 0:
-        last_punch_col_index = actual_punch_positions[-1]
-        if last_punch_col_index % 2 == 0:
+        if actual_punch_positions[-1] % 2 == 0:
             is_last_punch_an_in = True
 
-    if total_punches == 0:
-        status = "Error"
-        category = "No Punches / Absent"
-        issue_type = "Mispunch"
-    elif total_punches % 2 != 0 or is_last_punch_an_in:
+    if total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
         working_hours_str = "N/A"
         issue_type = "Mispunch"
@@ -241,12 +196,8 @@ def analyze_mispunches(row, punch_cols):
         minutes = int((total_seconds % 3600) // 60)
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        if target_hours == 7:
-            min_allowed_seconds = (6 * 3600) + (50 * 60)
-            max_allowed_seconds = (7 * 3600) + (20 * 60)
-        else:
-            min_allowed_seconds = (8 * 3600) + (50 * 60)
-            max_allowed_seconds = (9 * 3600) + (10 * 60)
+        min_allowed_seconds = (6 * 3600) + (50 * 60) if target_hours == 7 else (8 * 3600) + (50 * 60)
+        max_allowed_seconds = (7 * 3600) + (20 * 60) if target_hours == 7 else (9 * 3600) + (10 * 60)
         
         if total_seconds < min_allowed_seconds:
             status = "Error"
@@ -263,27 +214,41 @@ def analyze_mispunches(row, punch_cols):
 
     return pd.Series([total_punches, working_hours_str, status, category, issue_type])
 
-if uploaded_file is not None:
+# Process when Attendance file is uploaded
+if attendance_file is not None:
     try:
-        xls_file = pd.ExcelFile(uploaded_file)
-        if 'Roster' in xls_file.sheet_names:
-            df = pd.read_excel(uploaded_file, sheet_name='Roster')
-        else:
-            df = pd.read_excel(uploaded_file, sheet_name=0)
+        att_xls = pd.ExcelFile(attendance_file)
+        att_sheet = att_xls.sheet_names[0]
+        att_df = pd.read_excel(attendance_file, sheet_name=att_sheet)
     except Exception:
-        if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
+        att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
+
+    # If roster file is also uploaded, merge rules; otherwise use attendance file columns directly
+    if roster_file is not None:
+        try:
+            ros_xls = pd.ExcelFile(roster_file)
+            ros_sheet = 'Roster' if 'Roster' in ros_xls.sheet_names else ros_xls.sheet_names[0]
+            ros_df = pd.read_excel(roster_file, sheet_name=ros_sheet)
+        except Exception:
+            ros_df = pd.read_csv(roster_file) if roster_file.name.endswith('.csv') else pd.read_excel(roster_file)
         
+        # Find ID columns for merging
+        att_id_col = next((c for c in att_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), att_df.columns[0])
+        ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
+        
+        # Merge attendance with roster to get Working Hours and Break Policies
+        df = pd.merge(att_df, ros_df[['Psoft ID', 'Working Hours', 'No of breaks ', 'Shift timings ']], left_on=att_id_col, right_on=ros_id_col, how='left')
+    else:
+        df = att_df
+
     col_names = df.columns.tolist()
     
-    # STRICT COLUMN MAPPING FOR ROSTER FILE TO PREVENT MISMATCH
-    id_col = 'Psoft ID' if 'Psoft ID' in col_names else col_names[1]
-    name_col = 'Employee Name' if 'Employee Name' in col_names else col_names[3]
+    # STRICT ID & NAME MAPPING (Guarantees Psoft ID is never mistaken for name)
+    id_col = next((c for c in col_names if 'psoft id' in c.lower() or c.strip() == 'Psoft ID'), col_names[1] if len(col_names) > 1 else col_names[0])
+    name_col = next((c for c in col_names if 'employee name' in c.lower() or c.strip() == 'Employee Name'), col_names[3] if len(col_names) > 3 else col_names[0])
     
-    # Punch columns are everything after the standard roster info columns (from index 16 onwards based on HC.xlsx layout)
-    punch_cols = col_names[16:] if len(col_names) > 16 else [c for c in col_names if c not in ['SR', 'Psoft ID', 'AmazonID', 'Employee Name', 'Employment Type', 'Country', 'Building', 'LOB', 'Cost Center', 'Shift', 'Shift Difference', 'OFF1', 'OFF2', 'Working Hours', 'No of breaks ', 'Shift timings ']]
+    known_meta = ['sr', 'psoft id', 'psoft no', 'amazonid', 'amazon id', 'employee name', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
+    punch_cols = [c for c in col_names if c.strip().lower() not in known_meta and not any(m in c.lower() for m in ['psoft', 'amazonid', 'employee name'])]
     
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
@@ -304,16 +269,15 @@ if uploaded_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    base_cols = [id_col, name_col]
+    base_info_df = pd.DataFrame({
+        'P.Soft ID': df[id_col],
+        'Employee Name': df[name_col]
+    })
+    
     for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'No of breaks', 'Shift timings ', 'Shift timings']:
-        if opt_col in col_names and opt_col not in base_cols:
-            base_cols.append(opt_col)
+        if opt_col in col_names:
+            base_info_df[opt_col] = df[opt_col]
         
-    base_info_df = df[base_cols].copy()
-    
-    rename_dict = {id_col: 'P.Soft ID', name_col: 'Employee Name'}
-    base_info_df = base_info_df.rename(columns=rename_dict)
-    
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
@@ -436,31 +400,3 @@ if uploaded_file is not None:
 
     st.subheader(f"{current_title} ({len(active_display_df)} Records)")
     st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-
-    st.markdown("---")
-    
-    @st.cache_data
-    def convert_df(df_to_export):
-        import io
-        buffer = io.BytesIO()
-        try:
-            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
-                mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
-                defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
-                repeated_offenders_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Repeated Offenders')
-        except Exception:
-            with pd.ExcelWriter(buffer) as writer:
-                df_to_export.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Summary Report')
-                mispunches_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Mispunches')
-                defaulter_hours_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Defaulter Hours')
-                repeated_offenders_only.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Repeated Offenders')
-        return buffer.getvalue()
-
-    excel_data = convert_df(final_df)
-    st.download_button(
-        label="📥 Download Complete Report (Multi-Sheet Excel)",
-        data=excel_data,
-        file_name="Refined_Attendance_Report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
