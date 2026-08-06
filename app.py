@@ -169,7 +169,6 @@ if attendance_file is not None:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     col_names = att_df.columns.tolist()
 
-    # FIX: Explicitly find P.Soft ID and Employee Name columns correctly based on names
     id_col = None
     name_col = None
 
@@ -180,13 +179,12 @@ if attendance_file is not None:
         elif ('name' in c_low or 'employee' in c_low) and name_col is None:
             name_col = col
 
-    # Fallback to absolute secure index positions if header detection acts up
     if id_col is None:
         id_col = col_names[1] if len(col_names) > 1 else col_names[0]
     if name_col is None:
         name_col = col_names[3] if len(col_names) > 3 else (col_names[2] if len(col_names) > 2 else col_names[0])
 
-    # Ensure we explicitly pull ID and Name without swapping
+    # Clean ID and remove .0 completely
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     shift_map = {}
@@ -332,7 +330,7 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # CORRECT ASSIGNMENT: P.Soft ID gets Clean_ID, Employee Name gets actual name from name_col
+    # FIXED ASSIGNMENT: P.Soft ID gets Clean_ID (without .0), Employee Name gets name_col
     cleaned_ids = df['Clean_ID']
     cleaned_names = df[name_col].astype(str)
 
