@@ -104,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Precise Column Isolation & Shift-Aware Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster-Integrated Authentic Mispunch Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -118,6 +118,15 @@ with col_wh:
 st.markdown("<br>", unsafe_allow_html=True)
 
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
+
+@st.cache_data
+def load_permanent_roster():
+    try:
+        return pd.read_excel('HC.xlsx', sheet_name='Roster')
+    except Exception:
+        return None
+
+ros_df = load_permanent_roster()
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
@@ -148,13 +157,25 @@ def analyze_mispunches(row, punch_cols):
             
     total_punches = len(punches)
     
-    # If no punches found at all -> Absent / No punches
+    # Roster Shift Timing fetched directly from HC.xlsx merged row
+    shift_timing_raw = str(row.get('Shift timings ', row.get('Shift timings', ''))).strip().lower()
+    working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
+    
+    target_hours = 7 if '7' in working_hours_raw else 9
+
     if total_punches == 0:
         return pd.Series([0, "N/A", "OK", "No Punches / Absent", "Clean"])
 
-    # Real Mispunch Conditions:
-    # 1. Odd number of punches (e.g. 1, 3, 5 punches instead of pairs)
-    # 2. Last punch is an IN (even index in zero-based python list means an IN punch instead of OUT)
+    # STRICT ROSTER-AWARE SHIFT CONFLICT VALIDATION:
+    # If employee has only 1 punch, check if their master Roster shift timing matches this arrival (e.g., evening/night shift starting at 18:00 / 6 PM)
+    if total_punches == 1:
+        single_punch = punches[0]
+        punch_hour_str = f"{single_punch.hour:02d}:{single_punch.minute:02d}"
+        
+        # If roster shift timing contains the punch time (e.g. shift starts at 18:00 and they punched around 18:00)
+        if punch_hour_str in shift_timing_raw or ('18' in shift_timing_raw and 17 <= single_punch.hour <= 19) or ('06' in shift_timing_raw and 5 <= single_punch.hour <= 7):
+            return pd.Series([1, "N/A", "OK", "Valid Roster Shift Start (Ignored)", "Clean"])
+
     is_last_punch_an_in = False
     if total_punches > 0:
         if actual_punch_positions[-1] % 2 == 0:
@@ -175,7 +196,6 @@ def analyze_mispunches(row, punch_cols):
         else:
             category = f"Missing Scan ({total_punches} Punches)"
     else:
-        # Calculate working hours for valid pairs
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
         for i in range(0, total_punches, 2):
@@ -189,17 +209,16 @@ def analyze_mispunches(row, punch_cols):
         minutes = int((total_seconds % 3600) // 60)
         working_hours_str = f"{hours:02d}:{minutes:02d}"
         
-        # Standard threshold for defaulter hours
-        min_allowed_seconds = (8 * 3600) + (50 * 60)
-        max_allowed_seconds = (9 * 3600) + (10 * 60)
+        min_allowed_seconds = (6 * 3600) + (50 * 60) if target_hours == 7 else (8 * 3600) + (50 * 60)
+        max_allowed_seconds = (7 * 3600) + (20 * 60) if target_hours == 7 else (9 * 3600) + (10 * 60)
         
         if total_seconds < min_allowed_seconds:
             status = "Error"
-            category = "Short Working Hours (< 08:50)"
+            category = f"Short Working Hours (< {target_hours}h target)"
             issue_type = "Defaulter Hours"
         elif total_seconds > max_allowed_seconds:
             status = "Error"
-            category = "Overtime / Excessive Hours (> 09:10)"
+            category = f"Overtime / Excessive Hours (> {target_hours}h target)"
             issue_type = "Defaulter Hours"
         else:
             status = "OK"
@@ -211,33 +230,38 @@ def analyze_mispunches(row, punch_cols):
 if attendance_file is not None:
     try:
         att_xls = pd.ExcelFile(attendance_file)
-        df = pd.read_excel(attendance_file, sheet_name=att_xls.sheet_names[0])
+        att_df = pd.read_excel(attendance_file, sheet_name=att_xls.sheet_names[0])
     except Exception:
-        df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
+        att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
 
-    # Clean column names by stripping whitespace
-    df.columns = [str(c).strip() for c in df.columns.tolist()]
+    att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
+
+    # ROSTER INTEGRATION: Merge attendance file with permanent HC.xlsx Roster sheet via Psoft ID
+    if ros_df is not None:
+        att_id_col = next((c for c in att_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), att_df.columns[0])
+        ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
+        
+        df = pd.merge(att_df, ros_df[['Psoft ID', 'Working Hours', 'No of breaks ', 'Shift timings ']], left_on=att_id_col, right_on=ros_id_col, how='left')
+    else:
+        df = att_df
+
     col_names = df.columns.tolist()
 
-    # SECURELY IDENTIFY P.SOFT ID AND EMPLOYEE NAME COLUMNS
     id_col = None
     name_col = None
 
     for col in col_names:
         col_l = col.lower()
-        if ('psoft' in col_l or 'p.soft' in col_l or col_l == 'id') and id_col is None:
+        if ('psoft' in col_l or 'p.soft' in col_l) and id_col is None:
             id_col = col
         elif ('name' in col_l or 'employee' in col_l) and name_col is None:
             name_col = col
 
-    # Fallback index mapping if exact headers aren't caught by keyword search
     if id_col is None:
         id_col = col_names[1] if len(col_names) > 1 else col_names[0]
     if name_col is None:
         name_col = col_names[3] if len(col_names) > 3 else col_names[0]
 
-    # STRICT PUNCH COLUMNS ISOLATION
-    # Exclude all known metadata columns so ONLY punch time columns are processed
     ignore_list = [id_col.lower(), name_col.lower(), 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
     
     punch_cols = []
@@ -246,7 +270,6 @@ if attendance_file is not None:
         if c_low not in ignore_list and not any(ign in c_low for ign in ['psoft', 'amazon', 'employee', 'building', 'country', 'shift', 'break', 'off']):
             punch_cols.append(col)
 
-    # If punch columns list is empty, fallback to taking columns from index 4 onwards
     if len(punch_cols) == 0 and len(col_names) > 4:
         punch_cols = col_names[4:]
 
@@ -269,12 +292,15 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # RIGID BASE DATAFRAME CREATION: P.Soft ID gets ONLY ID data, Employee Name gets ONLY Name data
     base_info_df = pd.DataFrame({
         'P.Soft ID': df[id_col].astype(str),
         'Employee Name': df[name_col].astype(str)
     })
     
+    for opt_col in ['Shift', 'Working Hours', 'No of breaks ', 'Shift timings ']:
+        if opt_col in df.columns:
+            base_info_df[opt_col] = df[opt_col]
+        
     base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
     
     final_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
