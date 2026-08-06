@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import base64
 import io
 
-# Page Config
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
     layout="wide"
@@ -28,7 +27,6 @@ if bin_str:
         #MainMenu {{visibility: hidden;}}
         header {{visibility: hidden;}}
         footer {{visibility: hidden;}}
-
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
@@ -106,7 +104,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Dynamic Outcome-Based Analyzer</div>
+            <div class="custom-subtitle-text">Master Roster & Smart Shift Auto-Detection Analyzer</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -186,16 +184,16 @@ if attendance_file is not None:
     if name_col is None:
         name_col = col_names[3] if len(col_names) > 3 else col_names[0]
 
-    # Clean IDs for matching
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-    # Create mapping dictionaries from Roster if available
     shift_map = {}
     hours_map = {}
     breaks_map = {}
 
     if ros_df is not None:
         ros_id_col = next((c for c in ros_df.columns if 'psoft' in c.lower() or 'id' in c.lower()), ros_df.columns[1])
+        
+        # Flexible column finders
         shift_col = next((c for c in ros_df.columns if 'shift' in c.lower()), None)
         hours_col = next((c for c in ros_df.columns if 'working' in c.lower() or 'hour' in c.lower()), None)
         breaks_col = next((c for c in ros_df.columns if 'break' in c.lower()), None)
@@ -206,14 +204,14 @@ if attendance_file is not None:
                 s_val = str(r[shift_col]).strip().lower()
                 if 'night' in s_val: shift_map[r_id] = "Night"
                 elif 'mid' in s_val: shift_map[r_id] = "Mid"
-                else: shift_map[r_id] = "Day"
+                elif 'day' in s_val: shift_map[r_id] = "Day"
             if hours_col:
                 hours_map[r_id] = str(r[hours_col])
             if breaks_col:
                 breaks_map[r_id] = str(r[breaks_col])
 
     df = att_df.copy()
-    df['Shift'] = df['Clean_ID'].map(shift_map).fillna("Day")
+    df['Shift_Roster'] = df['Clean_ID'].map(shift_map)
     df['Working Hours'] = df['Clean_ID'].map(hours_map).fillna("9 Hours")
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
 
@@ -236,8 +234,22 @@ if attendance_file is not None:
                 punches.append(val)
                 
         total_punches = len(punches)
-        shift_val = row.get('Shift', 'Day')
         
+        # SHIFT RESOLUTION: Roster first, otherwise smart-detect from first punch time
+        shift_val = row.get('Shift_Roster')
+        if pd.isna(shift_val):
+            if total_punches > 0:
+                first_p_hour = punches[0].hour
+                # If first punch is between 4 PM (16:00) and 4 AM, it's Night shift
+                if first_p_hour >= 16 or first_p_hour < 5:
+                    shift_val = "Night"
+                elif 11 <= first_p_hour < 16:
+                    shift_val = "Mid"
+                else:
+                    shift_val = "Day"
+            else:
+                shift_val = "Day"
+
         working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
         target_hours = 7 if '7' in working_hours_raw else 9
         required_seconds = target_hours * 3600
