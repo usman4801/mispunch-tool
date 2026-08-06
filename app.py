@@ -142,7 +142,7 @@ st.markdown("""
         <div class="custom-icon-box">📊</div>
         <div>
             <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Real-time multi-shift, break policy & flexible intelligence</div>
+            <div class="custom-subtitle-text">Real-time multi-shift, break policy & 7/9 hours intelligence</div>
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -191,7 +191,6 @@ def analyze_mispunches(row, punch_cols):
             
     total_punches = len(punches)
     
-    # Safe check for working hours and breaks (defaults to 9 hours and 4 punches if columns missing)
     break_policy = str(row.get('No of breaks ', row.get('No of breaks', '1 hour break'))).strip().lower()
     working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
     
@@ -203,51 +202,6 @@ def analyze_mispunches(row, punch_cols):
     working_hours_str = "N/A"
     issue_type = "Clean"
     
-    # If file is purely punch logs without roster columns, we fall back to standard 2/4/6 punch validation
-    has_roster_data = 'Working Hours' in row.index or 'No of breaks' in row.index
-    
-    if not has_roster_data:
-        # Standard fallback logic for standard attendance files
-        if total_punches == 0:
-            status = "OK"
-            category = "No Punches / Absent"
-            issue_type = "Clean"
-        elif total_punches % 2 != 0:
-            status = "Error"
-            category = "Missing Scan (Odd Punches)"
-            issue_type = "Mispunch"
-        else:
-            dummy_date = datetime(2026, 1, 1)
-            total_seconds = 0
-            for i in range(0, total_punches, 2):
-                start_dt = datetime.combine(dummy_date, punches[i])
-                end_dt = datetime.combine(dummy_date, punches[i+1])
-                if end_dt < start_dt:
-                    end_dt += timedelta(days=1)
-                total_seconds += (end_dt - start_dt).total_seconds()
-            
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            working_hours_str = f"{hours:02d}:{minutes:02d}"
-            
-            min_allowed_seconds = (8 * 3600) + (50 * 60)
-            max_allowed_seconds = (9 * 3600) + (10 * 60)
-            
-            if total_seconds < min_allowed_seconds:
-                status = "Error"
-                category = "Short Working Hours (< 08:50)"
-                issue_type = "Defaulter Hours"
-            elif total_seconds > max_allowed_seconds:
-                status = "Error"
-                category = "Overtime / Excessive Hours (> 09:10)"
-                issue_type = "Defaulter Hours"
-            else:
-                status = "OK"
-                category = "Complete"
-                issue_type = "Clean"
-        return pd.Series([total_punches, working_hours_str, status, category, issue_type])
-
-    # Roster-integrated logic
     is_last_punch_an_in = False
     if total_punches > 0:
         last_punch_col_index = actual_punch_positions[-1]
@@ -255,9 +209,9 @@ def analyze_mispunches(row, punch_cols):
             is_last_punch_an_in = True
 
     if total_punches == 0:
-        status = "OK"
+        status = "Error"
         category = "No Punches / Absent"
-        issue_type = "Clean"
+        issue_type = "Mispunch"
     elif total_punches % 2 != 0 or is_last_punch_an_in:
         status = "Error"
         working_hours_str = "N/A"
@@ -268,6 +222,11 @@ def analyze_mispunches(row, punch_cols):
             category = "Single Scan Only"
         else:
             category = f"Missing Scan ({total_punches} Punches)"
+    elif total_punches != expected_punches:
+        status = "Error"
+        working_hours_str = "N/A"
+        category = f"Incorrect Punch Count ({total_punches} found, Expected {expected_punches})"
+        issue_type = "Mispunch"
     else:
         dummy_date = datetime(2026, 1, 1)
         total_seconds = 0
@@ -319,14 +278,12 @@ if uploaded_file is not None:
         
     col_names = df.columns.tolist()
     
-    id_col = 'Psoft ID' if 'Psoft ID' in col_names else (col_names[1] if len(col_names) > 1 else col_names[0])
-    name_col = 'Employee Name' if 'Employee Name' in col_names else (col_names[3] if len(col_names) > 3 else col_names[0])
+    # STRICT COLUMN MAPPING FOR ROSTER FILE TO PREVENT MISMATCH
+    id_col = 'Psoft ID' if 'Psoft ID' in col_names else col_names[1]
+    name_col = 'Employee Name' if 'Employee Name' in col_names else col_names[3]
     
-    metadata_cols = [c for c in col_names if any(k in c.lower() for k in ['sr', 'id', 'name', 'employment', 'country', 'building', 'lob', 'cost', 'shift', 'off', 'working hours', 'break', 'timings'])]
-    punch_cols = [c for c in col_names if c not in metadata_cols]
-    
-    if len(punch_cols) == 0:
-        punch_cols = col_names[10:] if len(col_names) > 10 else col_names[2:]
+    # Punch columns are everything after the standard roster info columns (from index 16 onwards based on HC.xlsx layout)
+    punch_cols = col_names[16:] if len(col_names) > 16 else [c for c in col_names if c not in ['SR', 'Psoft ID', 'AmazonID', 'Employee Name', 'Employment Type', 'Country', 'Building', 'LOB', 'Cost Center', 'Shift', 'Shift Difference', 'OFF1', 'OFF2', 'Working Hours', 'No of breaks ', 'Shift timings ']]
     
     st.markdown("""
         <div class="custom-header-container" style="margin-top: 20px;">
