@@ -89,8 +89,19 @@ def clean_id(val):
         return str(val).strip().lower()
 
 st.sidebar.header("⚙️ 7-Hours Configuration")
-st.sidebar.info("Agar koi employee 7 hours par map nahi ho raha, toh uski ID yahan daal dein.")
-manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", placeholder="e.g., 204299912, 203875180")
+st.sidebar.info("Tamam 7-hours employees (12 mins buffer up/down) yahan pre-loaded hain.")
+seven_hours_default = (
+    "205854274, 206247771, 206930332, 206915012, 206065208, 206136723, 206200811, "
+    "205853892, 206192237, 206361774, 206348020, 206348027, 206348019, 206368537, "
+    "206348026, 206348045, 206348030, 206348048, 206348049, 206348041, 206368538, "
+    "206348029, 206348042, 205845552, 206348052, 206348054, 203875181, 203875184, "
+    "203875092, 203875089, 203875090, 203875180, 203875183, 112463068, 203875088, "
+    "203875091, 203875185, 203875186, 206868000, 206897671, 206897640, 206136735, "
+    "205231290, 205252357, 206192232, 206491343, 206128578, 206136722, 205252356, "
+    "205252538, 205199356, 206230579, 206491328, 206240253, 206930331, 206868288, "
+    "206897649, 206868005, 206239524, 206136718"
+)
+manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", value=seven_hours_default)
 manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
 st.sidebar.markdown("---")
@@ -167,22 +178,27 @@ if attendance_file is not None:
     att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
     # ==========================================
-    # MAGIC FIX: EXCLUDE EMPLOYEES
+    # EXCLUDE EMPLOYEES
     # ==========================================
     if exclude_list:
         att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
         att_df.reset_index(drop=True, inplace=True)
 
-    if roster_hours_map:
-        att_df['Working Hours'] = att_df['Clean_ID'].map(roster_hours_map).fillna("9 Hours")
-    else:
-        att_df['Working Hours'] = "9 Hours"
+    # ==========================================
+    # ROBUST 7-HOURS & 9-HOURS MAPPING FIX
+    # ==========================================
+    def determine_working_hours(row):
+        cid = row['Clean_ID']
+        # 1. Manual Sidebar IDs check (Highest Priority)
+        if manual_ids_list and cid in manual_ids_list:
+            return "7 Hours"
+        # 2. Permanent Roster check from HC.xlsx
+        if roster_hours_map and cid in roster_hours_map:
+            return roster_hours_map[cid]
+        # Default fallback
+        return "9 Hours"
 
-    if manual_ids_list:
-        att_df.loc[att_df['Clean_ID'].isin(manual_ids_list), 'Working Hours'] = "7 Hours"
-        
-    # Updated to handle both 203875180 and 203875184 properly
-    att_df.loc[att_df['Clean_ID'].isin(['203875180', '203875184']), 'Working Hours'] = "7 Hours"
+    att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
 
     ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
     punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
@@ -204,11 +220,11 @@ if attendance_file is not None:
         target_str = str(row.get('Working Hours', '9 Hours'))
         
         if '7' in target_str:
-            min_mins = 408
-            max_mins = 432
+            min_mins = 408  # 7 hours target (420 mins) - 12 mins buffer
+            max_mins = 432  # 7 hours target (420 mins) + 12 mins buffer
         else:
-            min_mins = 528
-            max_mins = 552
+            min_mins = 528  # 9 hours target (540 mins) - 12 mins buffer
+            max_mins = 552  # 9 hours target (540 mins) + 12 mins buffer
 
         if total_punches == 0:
             return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
