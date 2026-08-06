@@ -163,7 +163,6 @@ if attendance_file is not None:
 
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-    # Load Roster safely
     ros_df = None
     try:
         ros_df = pd.read_excel('HC.xlsx', sheet_name='Roster')
@@ -186,7 +185,6 @@ if attendance_file is not None:
             r_id = str(r[ros_id_col]).replace('.0', '').strip()
             row_full_text = " ".join([str(val) for val in r.values]).lower()
             
-            # Explicitly check for 7 hours in any column of the roster row
             if '7 hours' in row_full_text or '7hr' in row_full_text or ' 7 ' in row_full_text:
                 hours_map[r_id] = "7 Hours"
             else:
@@ -205,12 +203,11 @@ if attendance_file is not None:
     df = att_df.copy()
     df['Shift_Roster'] = df['Clean_ID'].map(shift_map).fillna("Night" if "Night" in upload_mode else "Day")
     
-    # Map working hours with direct fallback override for known 7-hour IDs if roster fails
-    df['Working Hours'] = df['Clean_ID'].map(hours_map)
-    df.loc[df['Working Hours'].isna(), 'Working Hours'] = "9 Hours"
+    # Safe mapping without type conflicts
+    mapped_hours = df['Clean_ID'].map(hours_map)
+    df['Working Hours'] = [str(val) if pd.notna(val) else "9 Hours" for val in mapped_hours]
     
-    # Direct override check for ID 203875180 or similar 7-hour workers just in case roster map misses
-    known_7_hours_ids = ['203875180'] # Aap yahan mazeed 7 hours walon ki IDs bhi add kar sakte hain
+    known_7_hours_ids = ['203875180']
     df.loc[df['Clean_ID'].isin(known_7_hours_ids), 'Working Hours'] = "7 Hours"
 
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
@@ -240,15 +237,14 @@ if attendance_file is not None:
         
         working_hours_raw = str(row.get('Working Hours', '9')).lower()
         
-        # STRICT 7 HOURS vs 9 HOURS BUFFER CHECK (12 mins up/down)
         if '7' in working_hours_raw:
             target_hours = 7
-            min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
-            max_allowed_mins = (7 * 60) + 12  # 432 mins (7h 12m)
+            min_allowed_mins = (7 * 60) - 12
+            max_allowed_mins = (7 * 60) + 12
         else:
             target_hours = 9
-            min_allowed_mins = (9 * 60) - 12  # 528 mins (8h 48m)
-            max_allowed_mins = (9 * 60) + 12  # 552 mins (9h 12m)
+            min_allowed_mins = (9 * 60) - 12
+            max_allowed_mins = (9 * 60) + 12
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
