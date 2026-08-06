@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 import io
+import os
 
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
@@ -131,13 +132,30 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
 
-@st.cache_data
+def clean_id(val):
+    """Ziddi IDs ko bilkul clean karne ka function (removes spaces, decimals, leading zeros)"""
+    return str(val).replace('.0', '').strip().lstrip('0').lower()
+
+def find_column(columns, keywords, default_index):
+    """Dynamic column searcher taake roster format ka masla na aaye"""
+    for col in columns:
+        if any(kw in str(col).lower() for kw in keywords):
+            return col
+    return columns[default_index] if len(columns) > default_index else None
+
 def load_permanent_roster():
+    if not os.path.exists('HC.xlsx'):
+        st.error("❌ 'HC.xlsx' server/folder mein nahi mil rahi. Har employee 9 hours par map hoga.")
+        return None
     try:
-        ros = pd.read_excel('HC.xlsx', sheet_name='Roster')
+        xls = pd.ExcelFile('HC.xlsx')
+        sheet = 'Roster' if 'Roster' in xls.sheet_names else xls.sheet_names[0]
+        ros = pd.read_excel('HC.xlsx', sheet_name=sheet)
         ros.columns = [str(c).strip() for c in ros.columns.tolist()]
+        st.success(f"✅ Roster file loaded successfully ({len(ros)} records).")
         return ros
-    except Exception:
+    except Exception as e:
+        st.error(f"❌ Error reading 'HC.xlsx': {e}")
         return None
 
 ros_df = load_permanent_roster()
@@ -169,10 +187,10 @@ if attendance_file is not None:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     col_names = att_df.columns.tolist()
 
-    id_col = col_names[0]
-    name_col = col_names[1]
+    id_col = find_column(col_names, ['id', 'psoft', 'emp', 'no.'], 0)
+    name_col = find_column(col_names, ['name', 'employee'], 1)
 
-    att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+    att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
     shift_map = {}
     hours_map = {}
@@ -180,42 +198,49 @@ if attendance_file is not None:
     timings_map = {}
 
     if ros_df is not None:
-        ros_id_col = ros_df.columns[0]
-        shift_col = next((c for c in ros_df.columns if 'shift' in c.lower() and 'timing' not in c.lower()), None)
-        breaks_col = next((c for c in ros_df.columns if 'break' in c.lower()), None)
-        timings_col = next((c for c in ros_df.columns if 'timing' in c.lower()), None)
+        ros_id_col = find_column(ros_df.columns, ['id', 'psoft', 'emp'], 0)
+        hours_col = find_column(ros_df.columns, ['hour', 'working', 'time'], -1)
+        shift_col = find_column(ros_df.columns, ['shift'], -1)
+        breaks_col = find_column(ros_df.columns, ['break'], -1)
+        timings_col = find_column(ros_df.columns, ['timing'], -1)
 
         for _, r in ros_df.iterrows():
-            r_id = str(r[ros_id_col]).replace('.0', '').strip()
-            row_full_text = " ".join([str(val) for val in r.values]).lower()
+            if pd.isna(r.get(ros_id_col)): continue
+            r_id = clean_id(r[ros_id_col])
             
-            # Agar roster mein 7 mojood hai toh usko 7 Hours set karo
-            if '7' in row_full_text:
-                hours_map[r_id] = "7 Hours"
+            # Sub se pehle direct hours_col mein 7 check karega
+            assigned_hours = "9 Hours"
+            if hours_col and '7' in str(r.get(hours_col)).lower():
+                assigned_hours = "7 Hours"
             else:
-                hours_map[r_id] = "9 Hours"
+                # Agar column mein nahi mila toh poori row scan karega
+                row_full_text = " ".join([str(val) for val in r.values]).lower()
+                if '7 hours' in row_full_text or '7hr' in row_full_text or ' 7 ' in row_full_text:
+                    assigned_hours = "7 Hours"
+                    
+            hours_map[r_id] = assigned_hours
 
             if shift_col:
-                s_val = str(r[shift_col]).strip().lower()
+                s_val = str(r.get(shift_col)).strip().lower()
                 if 'night' in s_val: shift_map[r_id] = "Night"
                 elif 'mid' in s_val: shift_map[r_id] = "Mid"
                 else: shift_map[r_id] = "Day"
             if breaks_col:
-                breaks_map[r_id] = str(r[breaks_col]).strip()
+                breaks_map[r_id] = str(r.get(breaks_col)).strip()
             if timings_col:
-                timings_map[r_id] = str(r[timings_col]).strip()
+                timings_map[r_id] = str(r.get(timings_col)).strip()
 
     df = att_df.copy()
     df['Shift_Roster'] = df['Clean_ID'].map(shift_map).fillna("Night" if "Night" in upload_mode else "Day")
     
+    # Map with strict 9 hours fallback
     mapped_hours = df['Clean_ID'].map(hours_map)
     df['Working Hours'] = [str(val) if pd.notna(val) else "9 Hours" for val in mapped_hours]
     
-    # -------------------------------------------------------------------------
-    # FOOLPROOF OVERRIDE: Yahan apne sabhi 7 hours walay employees ki IDs daal do
-    # -------------------------------------------------------------------------
-    known_7_hours_ids = ['203875180']  # Aap aur IDs bhi yahan add kar sakte hain
-    df.loc[df['Clean_ID'].isin(known_7_hours_ids), 'Working Hours'] = "7 Hours"
+    # Manual Safety override (Just in case Roster still misses it)
+    known_7_hours_ids = ['203875180']
+    clean_known_ids = [clean_id(x) for x in known_7_hours_ids]
+    df.loc[df['Clean_ID'].isin(clean_known_ids), 'Working Hours'] = "7 Hours"
 
     df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
     df['Shift Timings'] = df['Clean_ID'].map(timings_map).fillna("")
@@ -244,7 +269,7 @@ if attendance_file is not None:
         
         working_hours_raw = str(row.get('Working Hours', '9')).lower()
         
-        # STRICT TARGET HOURS & BUFFER LOGIC (12 mins up/down)
+        # STRICT BUFFER LOGIC
         if '7' in working_hours_raw:
             target_hours = 7
             min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
@@ -312,6 +337,9 @@ if attendance_file is not None:
     analysis_df = df.apply(analyze_row, axis=1)
     analysis_df.columns = ['Total Punches', 'Shift', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
+    # Final Table mein explicitly Working Hours show karein takay verification asan ho
+    analysis_df.insert(2, 'Assigned Target', df['Working Hours']) 
+
     punches_df_cleaned = pd.DataFrame()
     for idx, col in enumerate(punch_cols):
         pair_num = (idx // 2) + 1
@@ -320,7 +348,7 @@ if attendance_file is not None:
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
     base_info_df = pd.DataFrame({
-        'P.Soft ID': df['Clean_ID'],
+        'P.Soft ID': df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
         'Employee Name': df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
@@ -328,7 +356,7 @@ if attendance_file is not None:
     
     temp_combined_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
 
-    base_cols_ordered = ['P.Soft ID', 'Employee Name', 'Repeated\nOffender', 'Total Punches', 'Shift', 'No. of\nWorking Hours', 'Status', 'Mispunch Category']
+    base_cols_ordered = ['P.Soft ID', 'Employee Name', 'Repeated\nOffender', 'Total Punches', 'Shift', 'Assigned Target', 'No. of\nWorking Hours', 'Status', 'Mispunch Category']
     punch_cols_ordered = list(punches_df_cleaned.columns)
     end_cols_ordered = ['Issue Type']
     
@@ -424,7 +452,7 @@ if attendance_file is not None:
         active_display_df = defaulter_hours_only.drop(columns=['Issue Type'])
         current_title = f"⏰ Defaulter Working Hours List"
     elif st.session_state.selected_view == "mispunches":
-        active_display_df = mispunches_only.drop(columns=['Issue Type', 'No. of\nWorking Hours'])
+        active_display_df = mispunches_only.drop(columns=['Issue Type'])
         current_title = f"⚠️ Missing & Extra Punches List"
     elif st.session_state.selected_view == "repeated":
         active_display_df = repeated_offenders_only.drop(columns=['Issue Type'])
@@ -448,7 +476,8 @@ if attendance_file is not None:
         "Employee Name": st.column_config.TextColumn("Employee Name", width="large"),
         "Repeated\nOffender": st.column_config.NumberColumn("Repeated\nOffender", width="medium", format="%d"),
         "Total Punches": st.column_config.NumberColumn("Total\nPunches", width="small"),
-        "No. of\nWorking Hours": st.column_config.TextColumn("No. of\nWorking Hours", width="medium"),
+        "Assigned Target": st.column_config.TextColumn("Assigned Target", width="small"),
+        "No. of\nWorking Hours": st.column_config.TextColumn("Calculated Hours", width="medium"),
         "Status": st.column_config.TextColumn("Status", width="small")
     }
 
