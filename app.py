@@ -169,11 +169,9 @@ if attendance_file is not None:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     col_names = att_df.columns.tolist()
 
-    # EXACT EXCEL LAYOUT LOCK: Column 0 is P.Soft ID, Column 1 is Employee Name
     id_col = col_names[0]
     name_col = col_names[1]
 
-    # Clean ID and remove .0 completely
     att_df['Clean_ID'] = att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     shift_map = {}
@@ -244,14 +242,16 @@ if attendance_file is not None:
                 shift_val = "Day"
 
         working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
-        target_hours = 7 if '7' in working_hours_raw else 9
         
-        if target_hours == 9:
-            min_allowed_mins = 527  
-            max_allowed_mins = 552  
+        # CORRECT TARGET HOURS & WINDOW FOR 7 HOURS vs 9 HOURS WORKERS
+        if '7' in working_hours_raw:
+            target_hours = 7
+            min_allowed_mins = 407  # ~6h 47m
+            max_allowed_mins = 432  # ~7h 12m
         else:
-            min_allowed_mins = 407
-            max_allowed_mins = 432
+            target_hours = 9
+            min_allowed_mins = 527  # ~8h 47m
+            max_allowed_mins = 552  # ~9h 12m
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
@@ -294,9 +294,9 @@ if attendance_file is not None:
             if min_allowed_mins <= effective_mins <= max_allowed_mins:
                 return pd.Series([total_punches, shift_val, hours_str, "OK", "Complete Within Window", "Clean"])
             elif effective_mins < min_allowed_mins:
-                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Under Time (< 8h 47m)", "Defaulter Hours"])
+                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Under Time (< {target_hours}h)", "Defaulter Hours"])
             else:
-                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Over Time (> 9h 12m)", "Defaulter Hours"])
+                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Over Time (> {target_hours}h)", "Defaulter Hours"])
         else:
             return pd.Series([total_punches, shift_val, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
@@ -319,7 +319,6 @@ if attendance_file is not None:
         col_label = label if pair_num == 1 else f"{label} ({pair_num})"
         punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
     
-    # 100% SECURE MAPPING: P.Soft ID = Column 0, Employee Name = Column 1
     base_info_df = pd.DataFrame({
         'P.Soft ID': df['Clean_ID'],
         'Employee Name': df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
