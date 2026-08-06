@@ -90,13 +90,12 @@ def clean_id(val):
 
 st.sidebar.header("⚙️ 7-Hours Configuration")
 st.sidebar.info("Agar koi employee 7 hours par map nahi ho raha, toh uski ID yahan daal dein.")
-manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", placeholder="e.g., 204299912, 203875184")
+manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", placeholder="e.g., 204299912, 203875180")
 manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
 st.sidebar.markdown("---")
 st.sidebar.header("🚫 Exclude / Ignore Employees")
 st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 10PM - 8AM shift wale).")
-# Default IDs jo aapne screenshot mein di hain
 exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203073699, 204043092, 203160007, 113015344")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
@@ -182,7 +181,8 @@ if attendance_file is not None:
     if manual_ids_list:
         att_df.loc[att_df['Clean_ID'].isin(manual_ids_list), 'Working Hours'] = "7 Hours"
         
-    att_df.loc[att_df['Clean_ID'] == '203875184', 'Working Hours'] = "7 Hours"
+    # Updated to handle both 203875180 and 203875184 properly
+    att_df.loc[att_df['Clean_ID'].isin(['203875180', '203875184']), 'Working Hours'] = "7 Hours"
 
     ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
     punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
