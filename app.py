@@ -243,15 +243,15 @@ if attendance_file is not None:
 
         working_hours_raw = str(row.get('Working Hours', '9 Hours')).strip().lower()
         
-        # CORRECT TARGET HOURS & WINDOW FOR 7 HOURS vs 9 HOURS WORKERS
+        # EXACT 12-MINUTE BUFFER LOGIC FOR BOTH 7 HOURS AND 9 HOURS WORKERS
         if '7' in working_hours_raw:
             target_hours = 7
-            min_allowed_mins = 407  # ~6h 47m
-            max_allowed_mins = 432  # ~7h 12m
+            min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
+            max_allowed_mins = (7 * 60) + 12  # 432 mins (7h 12m)
         else:
             target_hours = 9
-            min_allowed_mins = 527  # ~8h 47m
-            max_allowed_mins = 552  # ~9h 12m
+            min_allowed_mins = (9 * 60) - 12  # 528 mins (8h 48m)
+            max_allowed_mins = (9 * 60) + 12  # 552 mins (9h 12m)
 
         breaks_raw = str(row.get('No of breaks ', '0')).strip()
         try:
