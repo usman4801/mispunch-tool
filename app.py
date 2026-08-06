@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import base64
-import io
 import os
 
 st.set_page_config(
@@ -18,8 +17,7 @@ def get_base64_of_bin_file(bin_file):
     except:
         return ""
 
-image_filename = 'bg.jpeg.jpeg'
-bin_str = get_base64_of_bin_file(image_filename)
+bin_str = get_base64_of_bin_file('bg.jpeg.jpeg')
 
 if bin_str:
     st.markdown(
@@ -36,465 +34,206 @@ if bin_str:
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.92);
+            background-color: rgba(255, 255, 255, 0.95);
             padding: 2rem;
             border-radius: 12px;
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
-        div[data-baseweb="select"] {{
-            border: 2px solid #000000 !important;
-            border-radius: 6px !important;
-            background-color: #ffffff !important;
-            font-weight: bold !important;
-        }}
-        div[data-testid="stSelectbox"] label p {{
-            font-size: 16px !important;
-            font-weight: 800 !important;
-            color: #000000 !important;
-        }}
-        div[data-testid="stDataFrame"] th {{
-            white-space: pre-wrap !important;
-            word-wrap: break-word !important;
-        }}
         div[data-testid="stFileUploader"] {{
-            position: relative;
-            background: linear-gradient(90deg, rgba(0, 97, 255, 0.04) 0%, rgba(96, 239, 255, 0.12) 50%, rgba(142, 45, 226, 0.06) 100%);
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
             border-radius: 12px !important;
-            box-shadow: 0 4px 15px rgba(0, 97, 255, 0.08);
+            background: rgba(240, 248, 255, 0.5);
         }}
-        .custom-header-container {{
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            font-family: sans-serif;
-        }}
-        .custom-icon-box {{
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #0061ff 0%, #60efff 100%);
+        .metric-card {{
+            padding: 22px;
             border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 4px 10px rgba(0,97,255,0.3);
+            color: white;
+            font-family: sans-serif;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 15px;
         }}
-        .custom-title-text {{
-            font-size: 28px;
-            font-weight: 800;
-            color: #1e1e2f;
-            line-height: 1.2;
-        }}
-        .custom-subtitle-text {{
-            font-size: 14px;
-            font-weight: 500;
-            color: #6c757d;
-            margin-top: 2px;
-        }}
+        .card-blue {{ background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }}
+        .card-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
+        .card-orange {{ background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }}
+        .card-purple {{ background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }}
+        .card-title {{ font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
+        .card-value {{ font-size: 36px; font-weight: 800; }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-st.markdown("""
-    <div class="custom-header-container">
-        <div class="custom-icon-box">📊</div>
-        <div>
-            <div class="custom-title-text">Attendance Mispunch & Repeated Defaulter Intelligence</div>
-            <div class="custom-subtitle-text">Master Roster & Cross-Midnight Shift Analyzer</div>
-        </div>
-    </div>
-""", unsafe_allow_html=True)
-
+st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 st.markdown("---")
 
-col_wh, col_mode, col_space = st.columns([2, 4, 4])
-with col_wh:
-    selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"], index=0)
-
-with col_mode:
+col1, col2 = st.columns([3, 7])
+with col1:
+    selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"])
+with col2:
     upload_mode = st.selectbox(
-        "Select Uploaded Data Shift / Mode", 
-        options=[
-            "Full Day / 24 Hours Data", 
-            "Day Shift Only (e.g., 08:00 AM - 06:00 PM)", 
-            "Night Shift Only (e.g., 06:10 PM - 04:10 AM)",
-            "Mid Shift Only"
-        ], 
-        index=0
+        "Shift / Mode", 
+        options=["Full Day / 24 Hours Data", "Day Shift Only", "Night Shift Only", "Mid Shift Only"]
     )
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-attendance_file = st.file_uploader("Upload Daily Attendance / Punches File", type=["xlsx", "xls", "csv"])
+attendance_file = st.file_uploader("Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
 
 def clean_id(val):
-    """Ziddi IDs ko bilkul clean karne ka function (removes spaces, decimals, leading zeros)"""
-    return str(val).replace('.0', '').strip().lstrip('0').lower()
+    """Ziddi IDs ko saaf karne ka foolproof function"""
+    try:
+        return str(int(float(val)))
+    except:
+        return str(val).strip().lower()
 
-def find_column(columns, keywords, default_index):
-    """Dynamic column searcher taake roster format ka masla na aaye"""
-    for col in columns:
-        if any(kw in str(col).lower() for kw in keywords):
-            return col
-    return columns[default_index] if len(columns) > default_index else None
-
+@st.cache_data
 def load_permanent_roster():
     if not os.path.exists('HC.xlsx'):
-        st.error("❌ 'HC.xlsx' server/folder mein nahi mil rahi. Har employee 9 hours par map hoga.")
         return None
     try:
         xls = pd.ExcelFile('HC.xlsx')
         sheet = 'Roster' if 'Roster' in xls.sheet_names else xls.sheet_names[0]
         ros = pd.read_excel('HC.xlsx', sheet_name=sheet)
         ros.columns = [str(c).strip() for c in ros.columns.tolist()]
-        st.success(f"✅ Roster file loaded successfully ({len(ros)} records).")
-        return ros
-    except Exception as e:
-        st.error(f"❌ Error reading 'HC.xlsx': {e}")
+        
+        # Mapping banayen
+        id_col = ros.columns[0]
+        hours_map = {}
+        for _, row in ros.iterrows():
+            cid = clean_id(row[id_col])
+            row_text = " ".join([str(v).lower() for v in row.values])
+            if '7 hours' in row_text or '7 hrs' in row_text or ' 7 ' in row_text:
+                hours_map[cid] = '7 Hours'
+            else:
+                hours_map[cid] = '9 Hours'
+        return hours_map
+    except:
         return None
 
-ros_df = load_permanent_roster()
-
-def parse_time(time_val):
-    if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]:
-        return None
-    time_str = str(time_val).strip()
-    for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%I:%M%p"]:
-        try:
-            return datetime.strptime(time_str, fmt).time()
-        except ValueError:
-            continue
-    return None
-
-def format_time_clean(time_val):
-    t = parse_time(time_val)
-    if t is not None:
-        return t.strftime("%H:%M")
-    return ""
+roster_hours_map = load_permanent_roster()
 
 if attendance_file is not None:
+    # Read Attendance File
     try:
-        att_xls = pd.ExcelFile(attendance_file)
-        att_df = pd.read_excel(attendance_file, sheet_name=att_xls.sheet_names[0])
-    except Exception:
-        att_df = pd.read_csv(attendance_file) if attendance_file.name.endswith('.csv') else pd.read_excel(attendance_file)
+        att_df = pd.read_excel(attendance_file, sheet_name=0)
+    except:
+        att_df = pd.read_csv(attendance_file)
 
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
-    col_names = att_df.columns.tolist()
+    id_col = att_df.columns[0]
+    name_col = att_df.columns[1]
 
-    id_col = find_column(col_names, ['id', 'psoft', 'emp', 'no.'], 0)
-    name_col = find_column(col_names, ['name', 'employee'], 1)
-
+    # Clean IDs
     att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
-    shift_map = {}
-    hours_map = {}
-    breaks_map = {}
-    timings_map = {}
+    # Assign Target Hours via Roster map
+    if roster_hours_map:
+        att_df['Working Hours'] = att_df['Clean_ID'].map(roster_hours_map).fillna("9 Hours")
+    else:
+        att_df['Working Hours'] = "9 Hours"
 
-    if ros_df is not None:
-        ros_id_col = find_column(ros_df.columns, ['id', 'psoft', 'emp'], 0)
-        hours_col = find_column(ros_df.columns, ['hour', 'working', 'time'], -1)
-        shift_col = find_column(ros_df.columns, ['shift'], -1)
-        breaks_col = find_column(ros_df.columns, ['break'], -1)
-        timings_col = find_column(ros_df.columns, ['timing'], -1)
+    # DIRECT OVERRIDE: Is ID ko hamesha 7 Hours hi treat karega
+    known_7_ids = ['203875180'] 
+    att_df.loc[att_df['Clean_ID'].isin(known_7_ids), 'Working Hours'] = "7 Hours"
 
-        for _, r in ros_df.iterrows():
-            if pd.isna(r.get(ros_id_col)): continue
-            r_id = clean_id(r[ros_id_col])
-            
-            # Sub se pehle direct hours_col mein 7 check karega
-            assigned_hours = "9 Hours"
-            if hours_col and '7' in str(r.get(hours_col)).lower():
-                assigned_hours = "7 Hours"
-            else:
-                # Agar column mein nahi mila toh poori row scan karega
-                row_full_text = " ".join([str(val) for val in r.values]).lower()
-                if '7 hours' in row_full_text or '7hr' in row_full_text or ' 7 ' in row_full_text:
-                    assigned_hours = "7 Hours"
-                    
-            hours_map[r_id] = assigned_hours
+    # Extract punch columns dynamically (ignoring info columns)
+    ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
+    punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
+    if len(punch_cols) == 0 and len(att_df.columns) > 4:
+        punch_cols = att_df.columns[4:].tolist()
 
-            if shift_col:
-                s_val = str(r.get(shift_col)).strip().lower()
-                if 'night' in s_val: shift_map[r_id] = "Night"
-                elif 'mid' in s_val: shift_map[r_id] = "Mid"
-                else: shift_map[r_id] = "Day"
-            if breaks_col:
-                breaks_map[r_id] = str(r.get(breaks_col)).strip()
-            if timings_col:
-                timings_map[r_id] = str(r.get(timings_col)).strip()
-
-    df = att_df.copy()
-    df['Shift_Roster'] = df['Clean_ID'].map(shift_map).fillna("Night" if "Night" in upload_mode else "Day")
-    
-    # Map with strict 9 hours fallback
-    mapped_hours = df['Clean_ID'].map(hours_map)
-    df['Working Hours'] = [str(val) if pd.notna(val) else "9 Hours" for val in mapped_hours]
-    
-    # Manual Safety override (Just in case Roster still misses it)
-    known_7_hours_ids = ['203875180']
-    clean_known_ids = [clean_id(x) for x in known_7_hours_ids]
-    df.loc[df['Clean_ID'].isin(clean_known_ids), 'Working Hours'] = "7 Hours"
-
-    df['No of breaks '] = df['Clean_ID'].map(breaks_map).fillna("0")
-    df['Shift Timings'] = df['Clean_ID'].map(timings_map).fillna("")
-
-    ignore_list = [str(id_col).lower(), str(name_col).lower(), 'clean_id', 'sr', 'amazonid', 'amazon id', 'employment type', 'country', 'building', 'lob', 'cost center', 'shift', 'shift difference', 'off1', 'off2', 'working hours', 'no of breaks', 'no of breaks ', 'shift timings', 'shift timings ']
-    
-    punch_cols = []
-    for col in col_names:
-        c_low = col.lower()
-        if c_low not in ignore_list and not any(ign in c_low for ign in ['psoft', 'amazon', 'employee', 'building', 'country', 'shift', 'break', 'off', 'clean_id']):
-            punch_cols.append(col)
-
-    if len(punch_cols) == 0 and len(col_names) > 4:
-        punch_cols = col_names[4:]
+    def parse_time(time_val):
+        if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]: return None
+        for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"]:
+            try: return datetime.strptime(str(time_val).strip(), fmt).time()
+            except: continue
+        return None
 
     def analyze_row(row):
-        punches = []
-        for col in punch_cols:
-            val = parse_time(row.get(col))
-            if val is not None:
-                punches.append(val)
-                
+        punches = [parse_time(row.get(c)) for c in punch_cols]
+        punches = [p for p in punches if p is not None]
         total_punches = len(punches)
-        shift_val = row.get('Shift_Roster')
-        shift_timing_str = str(row.get('Shift Timings', '')).lower()
         
-        working_hours_raw = str(row.get('Working Hours', '9')).lower()
+        target = row.get('Working Hours', '9 Hours')
         
-        # STRICT BUFFER LOGIC
-        if '7' in working_hours_raw:
-            target_hours = 7
-            min_allowed_mins = (7 * 60) - 12  # 408 mins (6h 48m)
-            max_allowed_mins = (7 * 60) + 12  # 432 mins (7h 12m)
+        # 12 Mins Buffer
+        if '7' in str(target):
+            min_mins = 408  # 6h 48m
+            max_mins = 432  # 7h 12m
         else:
-            target_hours = 9
-            min_allowed_mins = (9 * 60) - 12  # 528 mins (8h 48m)
-            max_allowed_mins = (9 * 60) + 12  # 552 mins (9h 12m)
-
-        breaks_raw = str(row.get('No of breaks ', '0')).strip()
-        try:
-            break_mins = int(''.join(filter(str.isdigit, breaks_raw)))
-        except:
-            break_mins = 0
+            min_mins = 528  # 8h 48m
+            max_mins = 552  # 9h 12m
 
         if total_punches == 0:
-            return pd.Series([0, shift_val, "00:00", "OK", "Absent", "Clean"])
-
+            return pd.Series([0, target, "00:00", "OK", "Absent", "Clean"])
         if total_punches == 1:
-            single_punch = punches[0]
-            punch_total_mins = single_punch.hour * 60 + single_punch.minute
-            is_cross_midnight = "next day" in shift_timing_str or shift_val == "Night"
-            
-            if is_cross_midnight and (punch_total_mins <= 9 * 60 or punch_total_mins >= 21 * 60):
-                return pd.Series([1, shift_val, "N/A", "OK", "Cross-Midnight Log (Clean)", "Clean"])
-            elif "Day Shift Only" in upload_mode and punch_total_mins >= 17 * 60:
-                return pd.Series([1, shift_val, "N/A", "OK", "Shift Start (Clean)", "Clean"])
-            elif "Night Shift Only" in upload_mode and 6 * 60 <= punch_total_mins <= 12 * 60:
-                return pd.Series([1, shift_val, "N/A", "OK", "Shift Start (Clean)", "Clean"])
-                
-            return pd.Series([1, shift_val, "N/A", "Error", "Single Scan Only", "Mispunch"])
+            return pd.Series([1, target, "N/A", "Error", "Single Scan Only", "Mispunch"])
 
+        # Calculate duration
         dummy_date = datetime(2026, 1, 1)
-        total_duration_seconds = 0
+        total_secs = 0
         for i in range(0, total_punches - (total_punches % 2), 2):
             s = datetime.combine(dummy_date, punches[i])
             e = datetime.combine(dummy_date, punches[i+1])
-            if e < s: 
-                e += timedelta(days=1)
-            total_duration_seconds += (e - s).total_seconds()
+            if e < s: e += timedelta(days=1)
+            total_secs += (e - s).total_seconds()
         
-        effective_seconds = total_duration_seconds - (break_mins * 60)
-        effective_mins = effective_seconds / 60
-        hours_str = f"{int(total_duration_seconds // 3600):02d}:{int((total_duration_seconds % 3600) // 60):02d}"
+        eff_mins = total_secs / 60
+        hours_str = f"{int(total_secs // 3600):02d}:{int((total_secs % 3600) // 60):02d}"
         
         if total_punches % 2 == 0:
-            if min_allowed_mins <= effective_mins <= max_allowed_mins:
-                return pd.Series([total_punches, shift_val, hours_str, "OK", "Complete Within Window", "Clean"])
-            elif effective_mins < min_allowed_mins:
-                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Under Time (< {target_hours}h)", "Defaulter Hours"])
+            if min_mins <= eff_mins <= max_mins:
+                return pd.Series([total_punches, target, hours_str, "OK", "Complete Within Window", "Clean"])
+            elif eff_mins < min_mins:
+                return pd.Series([total_punches, target, hours_str, "Error", f"Under Time", "Defaulter Hours"])
             else:
-                return pd.Series([total_punches, shift_val, hours_str, "Error", f"Over Time (> {target_hours}h)", "Defaulter Hours"])
+                return pd.Series([total_punches, target, hours_str, "Error", f"Over Time", "Defaulter Hours"])
         else:
-            return pd.Series([total_punches, shift_val, hours_str, "Error", "Incomplete Punches", "Mispunch"])
+            return pd.Series([total_punches, target, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
-    st.markdown("""
-        <div class="custom-header-container" style="margin-top: 20px;">
-            <div class="custom-icon-box" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); width: 40px; height: 40px; font-size: 20px;">📋</div>
-            <div>
-                <div class="custom-title-text" style="font-size: 22px;">Processing Summary & Live Analysis</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    analysis_df = att_df.apply(analyze_row, axis=1)
+    analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Mispunch Category', 'Issue Type']
     
-    analysis_df = df.apply(analyze_row, axis=1)
-    analysis_df.columns = ['Total Punches', 'Shift', 'No. of\nWorking Hours', 'Status', 'Mispunch Category', 'Issue Type']
-    
-    # Final Table mein explicitly Working Hours show karein takay verification asan ho
-    analysis_df.insert(2, 'Assigned Target', df['Working Hours']) 
-
-    punches_df_cleaned = pd.DataFrame()
+    # Punches cleaning for display
+    punches_clean = pd.DataFrame()
     for idx, col in enumerate(punch_cols):
-        pair_num = (idx // 2) + 1
         label = "IN" if idx % 2 == 0 else "OUT"
-        col_label = label if pair_num == 1 else f"{label} ({pair_num})"
-        punches_df_cleaned[col_label] = df[col].apply(format_time_clean)
-    
-    base_info_df = pd.DataFrame({
-        'P.Soft ID': df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
-        'Employee Name': df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        num = (idx // 2) + 1
+        punches_clean[f"{label} ({num})" if num > 1 else label] = att_df[col].apply(lambda x: parse_time(x).strftime("%H:%M") if parse_time(x) else "")
+
+    base_info = pd.DataFrame({
+        'P.Soft ID': att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
+        'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
+    base_info['Repeated Offender'] = base_info.groupby('P.Soft ID').cumcount() + 1
     
-    base_info_df['Repeated\nOffender'] = base_info_df.groupby('P.Soft ID').cumcount() + 1
+    final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
+
+    # Categories
+    mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
+    defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
+    repeated = final_df[final_df['Repeated Offender'] > 1]
+
+    # View Buttons
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">📦 Total Records</div><div class="card-value">{len(final_df)}</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="metric-card card-green"><div class="card-title">🔄 Repeated Offenders</div><div class="card-value">{len(repeated)}</div></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
+    with c4:
+        st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
+
+    # Search & Display
+    search = st.text_input("🔍 Search Employee by Name or ID...")
     
-    temp_combined_df = pd.concat([base_info_df, analysis_df, punches_df_cleaned], axis=1)
-
-    base_cols_ordered = ['P.Soft ID', 'Employee Name', 'Repeated\nOffender', 'Total Punches', 'Shift', 'Assigned Target', 'No. of\nWorking Hours', 'Status', 'Mispunch Category']
-    punch_cols_ordered = list(punches_df_cleaned.columns)
-    end_cols_ordered = ['Issue Type']
+    display_df = final_df.drop(columns=['Issue Type'])
+    if search:
+        display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
-    final_df = temp_combined_df[base_cols_ordered + punch_cols_ordered + end_cols_ordered]
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-    mispunches_only = final_df[final_df['Issue Type'] == "Mispunch"].copy()
-    defaulter_hours_only = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
-    clean_records_only = final_df[final_df['Issue Type'] == "Clean"].copy()
-    repeated_offenders_only = final_df[final_df['Repeated\nOffender'] > 1].copy()
-    
-    if "selected_view" not in st.session_state:
-        st.session_state.selected_view = "mispunches"
-        
-    st.markdown("""
-        <style>
-        .metric-card {
-            padding: 22px;
-            border-radius: 12px 12px 0 0;
-            color: white;
-            font-family: sans-serif;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
-        .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
-        .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
-        
-        .card-title { font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }
-        .card-value { font-size: 36px; font-weight: 800; }
-
-        div[data-testid="stButton"] button {
-            border-radius: 0 0 12px 12px !important;
-            border-top: none !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-        }
-        div[data-testid="stButton"] button:hover {
-            transform: translateY(-2px);
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown(f"""
-            <div class="metric-card card-blue">
-                <div class="card-title">📦 Total Records</div>
-                <div class="card-value">{len(final_df)}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("👁️ View All Records ➔", key="btn_all", use_container_width=True):
-            st.session_state.selected_view = "all"
-            
-    with col2:
-        st.markdown(f"""
-            <div class="metric-card card-green">
-                <div class="card-title">🔄 Repeated Offenders</div>
-                <div class="card-value">{len(repeated_offenders_only)}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🔄 View Offenders List ➔", key="btn_repeated", use_container_width=True):
-            st.session_state.selected_view = "repeated"
-            
-    with col3:
-        st.markdown(f"""
-            <div class="metric-card card-orange">
-                <div class="card-title">⚠️ Mispunches</div>
-                <div class="card-value">{len(mispunches_only)}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("⚠️ View Mispunches ➔", key="btn_mispunch", type="primary", use_container_width=True):
-            st.session_state.selected_view = "mispunches"
-            
-    with col4:
-        st.markdown(f"""
-            <div class="metric-card card-purple">
-                <div class="card-title">⏰ Defaulter Hours</div>
-                <div class="card-value">{len(defaulter_hours_only)}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("⏰ View Defaulters ➔", key="btn_defaulters", use_container_width=True):
-            st.session_state.selected_view = "defaulters"
-            
-    st.markdown("---")
-
-    search_col1, search_col2 = st.columns([4, 6])
-    with search_col1:
-        search_query = st.text_input("🔍 Search Employee", placeholder="Type name or P.Soft ID...")
-
-    if st.session_state.selected_view == "defaulters":
-        active_display_df = defaulter_hours_only.drop(columns=['Issue Type'])
-        current_title = f"⏰ Defaulter Working Hours List"
-    elif st.session_state.selected_view == "mispunches":
-        active_display_df = mispunches_only.drop(columns=['Issue Type'])
-        current_title = f"⚠️ Missing & Extra Punches List"
-    elif st.session_state.selected_view == "repeated":
-        active_display_df = repeated_offenders_only.drop(columns=['Issue Type'])
-        current_title = f"🔄 Repeated Offenders List"
-    elif st.session_state.selected_view == "clean":
-        active_display_df = clean_records_only.drop(columns=['Issue Type'])
-        current_title = f"✅ Clean Employee Records"
-    else:
-        active_display_df = final_df.drop(columns=['Issue Type'])
-        current_title = f"📊 All Employee Records"
-
-    if search_query:
-        query_lower = search_query.lower()
-        active_display_df = active_display_df[
-            active_display_df['Employee Name'].astype(str).str.lower().str.contains(query_lower) |
-            active_display_df['P.Soft ID'].astype(str).str.lower().str.contains(query_lower)
-        ]
-
-    column_config_settings = {
-        "P.Soft ID": st.column_config.TextColumn("P.Soft ID", width="medium"),
-        "Employee Name": st.column_config.TextColumn("Employee Name", width="large"),
-        "Repeated\nOffender": st.column_config.NumberColumn("Repeated\nOffender", width="medium", format="%d"),
-        "Total Punches": st.column_config.NumberColumn("Total\nPunches", width="small"),
-        "Assigned Target": st.column_config.TextColumn("Assigned Target", width="small"),
-        "No. of\nWorking Hours": st.column_config.TextColumn("Calculated Hours", width="medium"),
-        "Status": st.column_config.TextColumn("Status", width="small")
-    }
-
-    st.subheader(f"{current_title} ({len(active_display_df)} Records)")
-    st.dataframe(active_display_df, column_config=column_config_settings, use_container_width=True, hide_index=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        final_df.drop(columns=['Issue Type']).to_excel(writer, index=False, sheet_name='Attendance_Analysis')
-    processed_data = output.getvalue()
-
-    st.download_button(
-        label="📥 Download Full Analyzed Report (Excel)",
-        data=processed_data,
-        file_name=f"Attendance_Analysis_{selected_warehouse}_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary"
-    )
+    # Download
+    csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Download Final Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary")
