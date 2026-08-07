@@ -57,7 +57,6 @@ if bin_str:
             background-attachment: fixed;
         }}
         .block-container {{
-            /* Yahan background thora transparent kar diya taake photo ziada nazar aaye (0.95 -> 0.85) */
             background-color: rgba(255, 255, 255, 0.85);
             padding: 2rem;
             border-radius: 12px;
@@ -65,17 +64,30 @@ if bin_str:
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
         
-        /* BLUE BORDER AB CALENDAR PAR SHIFT HO GAYA HAI */
+        /* CALENDAR BOX STYLING WITH EMOJI ON RIGHT */
         div[data-testid="stDateInput"] {{
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
             border-radius: 12px !important;
             background: rgba(240, 248, 255, 0.5);
         }}
+        div[data-testid="stDateInput"] label {{
+            width: 100% !important;
+        }}
         div[data-testid="stDateInput"] label p {{
             font-weight: 700 !important;
             color: #1e3a8a !important;
             font-size: 15px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+        }}
+        /* Right side emoji using CSS */
+        div[data-testid="stDateInput"] label p::after {{
+            content: "🗓️";
+            font-size: 24px;
+            margin-right: 5px;
         }}
 
         .metric-card {{
@@ -141,7 +153,6 @@ exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_id
 
 col1, col2 = st.columns([3, 7])
 with col1:
-    # Warehouse ko Site kar diya gaya hai
     selected_warehouse = st.selectbox("Site", options=["AUH1", "DXB5", "DXB3"])
 with col2:
     upload_mode = st.selectbox(
@@ -249,9 +260,8 @@ def rebuild_all_history():
 rebuild_all_history()
 
 # ==========================================
-# UI: FILE UPLOAD & CALENDAR RANGE AUTO-FETCH (SWAPPED COLUMNS)
+# UI: FILE UPLOAD & CALENDAR RANGE AUTO-FETCH
 # ==========================================
-# Left column ab bari (60%) aur right choti (40%) hogi
 up_col1, up_col2 = st.columns([6, 4])
 attendance_file = None
 
@@ -265,8 +275,8 @@ with up_col1:
     )
 
 with up_col2:
-    # Upload section right pe aur usmein Excel Emoji 📗
-    uploaded_manual_file = st.file_uploader("📗 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
+    # Text change kar diya gaya hai yahan
+    uploaded_manual_file = st.file_uploader("📗 Upload File", type=["xlsx", "xls", "csv"])
 
 temp_dfs = []
 
@@ -276,7 +286,6 @@ if uploaded_manual_file is not None:
     except:
         tdf = pd.read_csv(uploaded_manual_file, dtype=str)
     
-    # Agar user manually file upload kare aur usme Date column na ho toh file name se date nikalne ki koshish karein
     f_name = uploaded_manual_file.name.split('.')[0]
     tdf['Date'] = f_name if len(f_name) >= 10 else datetime.now().strftime("%Y-%m-%d")
     temp_dfs.append(tdf)
@@ -297,7 +306,7 @@ elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
         for f_path, d_str in valid_files:
             try:
                 tdf = pd.read_excel(f_path, sheet_name=0, dtype=str)
-                tdf['Date'] = d_str  # Har row ke sath date attach kar di
+                tdf['Date'] = d_str  
                 temp_dfs.append(tdf)
             except:
                 try:
