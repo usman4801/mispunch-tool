@@ -26,6 +26,11 @@ if bin_str:
         #MainMenu {{visibility: hidden;}}
         header {{visibility: hidden;}}
         footer {{visibility: hidden;}}
+        
+        /* Yeh line bottom-right wale Streamlit badge (crown) ko hide karegi */
+        [data-testid="stViewerBadge"] {{display: none !important;}}
+        .viewerBadge_container {{display: none !important;}}
+
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
