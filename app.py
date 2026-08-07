@@ -133,18 +133,6 @@ st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 1
 exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203073699, 204043092, 203160007, 113015344")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
-# HISTORY RESET OPTION IN SIDEBAR
-st.sidebar.markdown("---")
-st.sidebar.header("🛠️ History Management")
-HISTORY_FILE = 'offenders_history.csv'
-if st.sidebar.button("🗑️ Reset History Database"):
-    if os.path.exists(HISTORY_FILE):
-        os.remove(HISTORY_FILE)
-        st.sidebar.success("History successfully cleared!")
-        st.rerun()
-    else:
-        st.sidebar.info("No history file found.")
-
 col1, col2 = st.columns([3, 7])
 with col1:
     selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"])
@@ -206,13 +194,15 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# MEMORY DATABASE LOGIC
+# MEMORY DATABASE LOGIC (FRESH STATE LOGIC)
+HISTORY_FILE = 'offenders_history.csv'
+
 def update_and_get_offenders_history(current_offenders_df):
+    # Automatically reset history if it contains mixed old data, keeping only current date clean
     today_date = datetime.now().strftime("%Y-%m-%d")
-    if os.path.exists(HISTORY_FILE):
-        history_df = pd.read_csv(HISTORY_FILE, dtype=str)
-    else:
-        history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
+    
+    # Fresh initialization to avoid any mismatch
+    history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
 
     new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
     new_records['Date'] = today_date
