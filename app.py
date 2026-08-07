@@ -40,12 +40,6 @@ if bin_str:
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
-        div[data-testid="stFileUploader"] {{
-            border: 2px dashed #3b82f6 !important;
-            padding: 18px !important;
-            border-radius: 12px !important;
-            background: rgba(240, 248, 255, 0.5);
-        }}
         .metric-card {{
             padding: 22px;
             border-radius: 12px 12px 0 0;
@@ -89,7 +83,6 @@ def clean_id(val):
         return str(val).strip().lower()
 
 st.sidebar.header("⚙️ 7-Hours Configuration")
-st.sidebar.info("Tamam 7-hours employees (12 mins buffer up/down) yahan pre-loaded hain.")
 seven_hours_default = (
     "205854274, 206247771, 206930332, 206915012, 206065208, 206136723, 206200811, "
     "205853892, 206192237, 206361774, 206348020, 206348027, 206348019, 206368537, "
@@ -106,11 +99,10 @@ manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids
 
 st.sidebar.markdown("---")
 st.sidebar.header("🚫 Exclude / Ignore Employees")
-st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 10PM - 8AM shift wale).")
 exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203073699, 204043092, 203160007, 113015344")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
-col1, col2 = st.columns([3, 7])
+col1, col2 = st.columns([3, 4])
 with col1:
     selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"])
 with col2:
@@ -119,7 +111,47 @@ with col2:
         options=["Full Day / 24 Hours Data", "Day Shift Only", "Night Shift Only", "Mid Shift Only"]
     )
 
-attendance_file = st.file_uploader("Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
+st.markdown("<br>", unsafe_allow_html=True)
+
+# -----------------------------------------------------
+# SIDE-BY-SIDE INPUT SECTION (Manual Upload & Calendar Auto-Fetch)
+# -----------------------------------------------------
+input_col1, input_col2 = st.columns(2)
+
+attendance_file = None
+active_date = datetime.now()
+
+os.makedirs("daily_files", exist_ok=True)
+
+with input_col1:
+    st.markdown("##### 📥 Manual File Upload (For Quick Check)")
+    uploaded_manual_file = st.file_uploader("Upload single file directly", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
+    if uploaded_manual_file is not None:
+        attendance_file = uploaded_manual_file
+        st.info("📌 Using **Manually Uploaded** file.")
+
+with input_col2:
+    st.markdown("##### 📅 Calendar Auto-Fetch from `daily_files`")
+    selected_calendar_date = st.date_input("Select date from folder", datetime.now(), label_visibility="collapsed")
+    active_date = selected_calendar_date
+    
+    date_str = selected_calendar_date.strftime("%Y-%m-%d")
+    file_path_xlsx = os.path.join("daily_files", f"{date_str}.xlsx")
+    file_path_xls = os.path.join("daily_files", f"{date_str}.xls")
+    file_path_csv = os.path.join("daily_files", f"{date_str}.csv")
+    
+    if uploaded_manual_file is None:
+        if os.path.exists(file_path_xlsx):
+            attendance_file = file_path_xlsx
+            st.success(f"✅ Auto-loaded from folder: `{date_str}.xlsx`")
+        elif os.path.exists(file_path_xls):
+            attendance_file = file_path_xls
+            st.success(f"✅ Auto-loaded from folder: `{date_str}.xls`")
+        elif os.path.exists(file_path_csv):
+            attendance_file = file_path_csv
+            st.success(f"✅ Auto-loaded from folder: `{date_str}.csv`")
+        else:
+            st.warning(f"⚠️ `{date_str}` ki file folder mein nahi mili.")
 
 @st.cache_data
 def load_permanent_roster():
@@ -146,18 +178,18 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# MEMORY DATABASE LOGIC
+# MEMORY DATABASE LOGIC WITH SELECTED DATE
 HISTORY_FILE = 'offenders_history.csv'
 
-def update_and_get_offenders_history(current_offenders_df):
-    today_date = datetime.now().strftime("%Y-%m-%d")
+def update_and_get_offenders_history(current_offenders_df, target_date):
+    d_str = target_date.strftime("%Y-%m-%d")
     if os.path.exists(HISTORY_FILE):
         history_df = pd.read_csv(HISTORY_FILE, dtype=str)
     else:
         history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
 
     new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
-    new_records['Date'] = today_date
+    new_records['Date'] = d_str
     
     combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
     combined_df.to_csv(HISTORY_FILE, index=False)
@@ -177,25 +209,16 @@ if attendance_file is not None:
 
     att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
-    # ==========================================
-    # EXCLUDE EMPLOYEES
-    # ==========================================
     if exclude_list:
         att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
         att_df.reset_index(drop=True, inplace=True)
 
-    # ==========================================
-    # ROBUST 7-HOURS & 9-HOURS MAPPING FIX
-    # ==========================================
     def determine_working_hours(row):
         cid = row['Clean_ID']
-        # 1. Manual Sidebar IDs check (Highest Priority)
         if manual_ids_list and cid in manual_ids_list:
             return "7 Hours"
-        # 2. Permanent Roster check from HC.xlsx
         if roster_hours_map and cid in roster_hours_map:
             return roster_hours_map[cid]
-        # Default fallback
         return "9 Hours"
 
     att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
@@ -220,11 +243,11 @@ if attendance_file is not None:
         target_str = str(row.get('Working Hours', '9 Hours'))
         
         if '7' in target_str:
-            min_mins = 408  # 7 hours target (420 mins) - 12 mins buffer
-            max_mins = 432  # 7 hours target (420 mins) + 12 mins buffer
+            min_mins = 408
+            max_mins = 432
         else:
-            min_mins = 528  # 9 hours target (540 mins) - 12 mins buffer
-            max_mins = 552  # 9 hours target (540 mins) + 12 mins buffer
+            min_mins = 528
+            max_mins = 552
 
         if total_punches == 0:
             return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
@@ -269,7 +292,7 @@ if attendance_file is not None:
     temp_combined = pd.concat([base_info, analysis_df], axis=1)
     today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
     
-    historical_counts = update_and_get_offenders_history(today_offenders)
+    historical_counts = update_and_get_offenders_history(today_offenders, active_date)
     
     base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
     base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
@@ -316,7 +339,6 @@ if attendance_file is not None:
         st.subheader(f"📦 All Records ({len(display_df)} Records)")
 
     search = st.text_input("🔍 Search Employee by Name or ID...")
-    
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
@@ -327,7 +349,7 @@ if attendance_file is not None:
     down_col1, down_col2 = st.columns(2)
     with down_col1:
         csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Today's Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary", use_container_width=True)
+        st.download_button("📥 Download Report (CSV)", csv, f"Attendance_Report_{active_date.strftime('%Y-%m-%d')}_{selected_warehouse}.csv", "text/csv", type="primary", use_container_width=True)
     with down_col2:
         if os.path.exists(HISTORY_FILE):
             hist_csv = pd.read_csv(HISTORY_FILE).to_csv(index=False).encode('utf-8')
