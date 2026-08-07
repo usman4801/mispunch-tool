@@ -245,7 +245,8 @@ with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
 
 with up_col2:
-    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch (Date Range)</b></div>", unsafe_allow_html=True)
+    # Yahan naya text update kar diya gaya hai
+    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch (No file required)</b></div>", unsafe_allow_html=True)
     
     default_start = datetime.now().date() - timedelta(days=5)
     default_end = datetime.now().date()
