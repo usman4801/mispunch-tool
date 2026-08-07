@@ -136,30 +136,6 @@ with col2:
         options=["Full Day / 24 Hours Data", "Day Shift Only", "Night Shift Only", "Mid Shift Only"]
     )
 
-up_col1, up_col2 = st.columns(2)
-attendance_file = None
-active_file_date = datetime.now().strftime("%Y-%m-%d")
-
-with up_col1:
-    uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
-    if uploaded_manual_file: 
-        attendance_file = uploaded_manual_file
-
-with up_col2:
-    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch</b></div>", unsafe_allow_html=True)
-    selected_calendar_date = st.date_input("Select date", datetime.now(), label_visibility="collapsed")
-    date_str = selected_calendar_date.strftime("%Y-%m-%d")
-    active_file_date = date_str
-    
-    file_path = f"{date_str}.xlsx.xlsx"
-    
-    if not uploaded_manual_file:
-        if os.path.exists(file_path):
-            attendance_file = file_path
-            st.success(f"✅ Auto-fetched: {file_path}")
-        else:
-            st.info(f"ℹ️ File '{file_path}' not found in the main folder.")
-
 @st.cache_data
 def load_permanent_roster():
     roster_map = {}
@@ -197,14 +173,17 @@ def parse_time(time_val):
             continue
     return None
 
-# AUTO-BUILD HISTORY FROM ALL 2026-08-XX FILES IN FOLDER
-def rebuild_all_history():
+# AUTO-BUILD HISTORY & GET AVAILABLE DATES
+def get_available_dates_and_rebuild():
     all_records = []
+    available_dates = []
     all_files = glob.glob("2026-08-*.xlsx.xlsx") + glob.glob("2026-08-*.csv") + glob.glob("2026-08-*.xls")
     
     for fpath in all_files:
-        # Extract date from filename e.g. 2026-08-01.xlsx.xlsx -> 2026-08-01
         f_date = os.path.basename(fpath).split(".")[0]
+        if f_date not in available_dates:
+            available_dates.append(f_date)
+            
         try:
             df = pd.read_excel(fpath, sheet_name=0, dtype=str)
         except:
@@ -258,31 +237,56 @@ def rebuild_all_history():
     if all_records:
         hist_df = pd.DataFrame(all_records).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
         hist_df.to_csv(HISTORY_FILE, index=False)
+        
+    return sorted(available_dates, reverse=True)
 
-# Run history builder on startup
-rebuild_all_history()
+available_dates_list = get_available_dates_and_rebuild()
 
-def update_and_get_offenders_history(current_offenders_df, target_date_str):
-    if os.path.exists(HISTORY_FILE):
-        history_df = pd.read_csv(HISTORY_FILE, dtype=str)
+# ==========================================
+# UI: FILE UPLOAD & MULTI-DATE SELECTOR
+# ==========================================
+up_col1, up_col2 = st.columns(2)
+attendance_file = None
+selected_dates = []
+
+with up_col1:
+    uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
+    if uploaded_manual_file: 
+        attendance_file = uploaded_manual_file
+
+with up_col2:
+    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Select Multiple Dates (Multi-Select)</b></div>", unsafe_allow_html=True)
+    if available_dates_list:
+        selected_dates = st.multiselect("Choose dates to analyze & combine", options=available_dates_list, default=available_dates_list[:1], label_visibility="collapsed")
     else:
-        history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
+        st.info("ℹ️ No date files found in folder.")
 
-    new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
-    new_records['Date'] = target_date_str
-    
-    combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
-    combined_df.to_csv(HISTORY_FILE, index=False)
-    
-    offense_counts = combined_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
-    return offense_counts
+# Helper function to process single or combined multi-dates dataframe
+def process_attendance_data(target_files):
+    combined_raw_df = pd.DataFrame()
+    for fpath in target_files:
+        try:
+            df = pd.read_excel(fpath, sheet_name=0, dtype=str)
+        except:
+            try:
+                df = pd.read_csv(fpath, dtype=str)
+            except:
+                continue
+        combined_raw_df = pd.concat([combined_raw_df, df], ignore_index=True)
+    return combined_raw_df
 
-if attendance_file is not None:
+if uploaded_manual_file is not None:
     try:
-        att_df = pd.read_excel(attendance_file, sheet_name=0, dtype=str)
+        att_df = pd.read_excel(uploaded_manual_file, sheet_name=0, dtype=str)
     except:
-        att_df = pd.read_csv(attendance_file, dtype=str)
+        att_df = pd.read_csv(uploaded_manual_file, dtype=str)
+elif selected_dates:
+    file_paths = [f"{d}.xlsx.xlsx" for d in selected_dates if os.path.exists(f"{d}.xlsx.xlsx")]
+    att_df = process_attendance_data(file_paths)
+else:
+    att_df = pd.DataFrame()
 
+if not att_df.empty:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     id_col = att_df.columns[0]
     name_col = att_df.columns[1]
@@ -357,11 +361,13 @@ if attendance_file is not None:
         'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
-    temp_combined = pd.concat([base_info, analysis_df], axis=1)
-    today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
-    
-    historical_counts = update_and_get_offenders_history(today_offenders, active_file_date)
-    
+    # Get Master History Counts for Repeated Badges
+    if os.path.exists(HISTORY_FILE):
+        hist_df = pd.read_csv(HISTORY_FILE, dtype=str)
+        historical_counts = hist_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+    else:
+        historical_counts = pd.DataFrame(columns=['P.Soft ID', 'Total Offenses'])
+
     base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
     base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
     
@@ -423,7 +429,7 @@ if attendance_file is not None:
     down_col1, down_col2 = st.columns(2)
     with down_col1:
         csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Today's Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary", use_container_width=True)
+        st.download_button("📥 Download Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary", use_container_width=True)
     with down_col2:
         if os.path.exists(HISTORY_FILE):
             hist_csv = pd.read_csv(HISTORY_FILE).to_csv(index=False).encode('utf-8')
