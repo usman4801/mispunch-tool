@@ -9,6 +9,30 @@ st.set_page_config(
     layout="wide"
 )
 
+# ==========================================
+# FORCE HIDE ALL STREAMLIT BADGES & ICONS
+# ==========================================
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Aggressive removal of Toolbar (Blue) and Viewer Badge (Red Crown) */
+    [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stDecoration"] {display: none !important; visibility: hidden !important;}
+    .viewerBadge_container {display: none !important; visibility: hidden !important; opacity: 0 !important;}
+    .viewerBadge_link {display: none !important; visibility: hidden !important;}
+    #st-toolbar {display: none !important; visibility: hidden !important;}
+    .stActionButton {display: none !important; visibility: hidden !important;}
+    div[class^="viewerBadge"] {display: none !important;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
@@ -23,14 +47,6 @@ if bin_str:
     st.markdown(
         f"""
         <style>
-        #MainMenu {{visibility: hidden;}}
-        header {{visibility: hidden;}}
-        footer {{visibility: hidden;}}
-        
-        /* Yeh line bottom-right wale Streamlit badge (crown) ko hide karegi */
-        [data-testid="stViewerBadge"] {{display: none !important;}}
-        .viewerBadge_container {{display: none !important;}}
-
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
