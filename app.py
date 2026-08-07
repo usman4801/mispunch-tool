@@ -32,7 +32,7 @@ def add_bg_from_local(image_file):
 # Add background (GitHub mein file ka naam 'bg.jpeg.jpeg' hai)
 add_bg_from_local('bg.jpeg.jpeg')
 
-# --- CSS Styles (Fork icon hide & Blue Borders) ---
+# --- CSS Styles (Fork icon hide, Blue Borders & Block Design) ---
 st.markdown("""
     <style>
     /* Hide Streamlit Top Menu, Fork icon, and Footer */
@@ -48,13 +48,19 @@ st.markdown("""
         padding: 20px;
     }
     
-    /* Metrics Card Styles */
-    .metric-card { padding: 22px; border-radius: 12px 12px 0 0; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    /* Original Block Design Metrics Card Styles */
+    .metric-card { 
+        padding: 22px; 
+        border-radius: 12px; 
+        color: white; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+        margin-bottom: 20px;
+    }
     .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
     .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
     .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
     .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
-    .card-title { font-size: 16px; font-weight: 600; }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
     .card-value { font-size: 36px; font-weight: 800; }
     </style>
 """, unsafe_allow_html=True)
@@ -90,7 +96,7 @@ with input_col2:
     active_date = selected_calendar_date
     date_str = selected_calendar_date.strftime("%Y-%m-%d")
     
-    # FIX: Path updated directly to match GitHub repo (.xlsx.xlsx format in main root folder)
+    # Path format matching your GitHub repository structure
     file_path = f"{date_str}.xlsx.xlsx"
     
     if not uploaded_manual_file:
@@ -100,7 +106,7 @@ with input_col2:
         else:
             st.warning(f"⚠️ File '{file_path}' not found in the main repository folder.")
 
-# --- Processing Logic ---
+# --- Processing Logic & Original Block Design ---
 if attendance_file:
     try:
         # Handle string path (auto-fetch) vs UploadedFile object (manual)
@@ -111,7 +117,49 @@ if attendance_file:
         else:
             att_df = pd.read_excel(attendance_file)
             
-        st.write("File processed successfully. Ready for metrics!")
-        # ... (Include your processing logic here)
+        st.markdown("---")
+        st.markdown("### 📈 Daily Metrics")
+        
+        # Calculate Total Records just to verify it's working
+        total_records = len(att_df) if not att_df.empty else 0
+        
+        # UI: Original Block Layout Metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f'''
+                <div class="metric-card card-blue">
+                    <div class="card-title">Total Records</div>
+                    <div class="card-value">{total_records}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown(f'''
+                <div class="metric-card card-orange">
+                    <div class="card-title">Pending Items</div>
+                    <div class="card-value">-</div>
+                </div>
+            ''', unsafe_allow_html=True)
+            
+        with col3:
+            st.markdown(f'''
+                <div class="metric-card card-purple">
+                    <div class="card-title">Mispunches</div>
+                    <div class="card-value">-</div>
+                </div>
+            ''', unsafe_allow_html=True)
+            
+        with col4:
+            st.markdown(f'''
+                <div class="metric-card card-green">
+                    <div class="card-title">7-Hr Defaulters</div>
+                    <div class="card-value">-</div>
+                </div>
+            ''', unsafe_allow_html=True)
+            
+        st.markdown("#### 📋 Detailed Data (By Agency & Shift)")
+        st.dataframe(att_df, use_container_width=True)
+        
     except Exception as e:
         st.error(f"Error processing file: {e}")
