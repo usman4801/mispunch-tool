@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 import base64
 import os
 
@@ -9,9 +9,46 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- CSS Styles ---
+# --- Background Image & Hide Default Menu ---
+def add_bg_from_local(image_file):
+    try:
+        with open(image_file, "rb") as file:
+            encoded_string = base64.b64encode(file.read()).decode()
+        st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url(data:image/jpeg;base64,{encoded_string});
+            background-size: cover;
+            background-position: center;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+        )
+    except Exception as e:
+        pass # Agar file na milay tou app crash na ho
+
+# Add background (GitHub mein file ka naam 'bg.jpeg.jpeg' hai)
+add_bg_from_local('bg.jpeg.jpeg')
+
+# --- CSS Styles (Fork icon hide & Blue Borders) ---
 st.markdown("""
     <style>
+    /* Hide Streamlit Top Menu, Fork icon, and Footer */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Beautiful Blue Border for File Uploader Box */
+    [data-testid="stFileUploadDropzone"] {
+        border: 2px dashed #0061ff !important;
+        background-color: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    /* Metrics Card Styles */
     .metric-card { padding: 22px; border-radius: 12px 12px 0 0; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
     .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
@@ -48,25 +85,33 @@ with input_col1:
     if uploaded_manual_file: attendance_file = uploaded_manual_file
 
 with input_col2:
-    st.markdown("##### 📅 Calendar Auto-Fetch from `daily_files`")
+    st.markdown("##### 📅 Calendar Auto-Fetch")
     selected_calendar_date = st.date_input("Select date", datetime.now(), label_visibility="collapsed")
     active_date = selected_calendar_date
     date_str = selected_calendar_date.strftime("%Y-%m-%d")
     
-    file_path = os.path.join("daily_files", f"{date_str}.xlsx")
+    # FIX: Path updated directly to match GitHub repo (.xlsx.xlsx format in main root folder)
+    file_path = f"{date_str}.xlsx.xlsx"
     
     if not uploaded_manual_file:
         if os.path.exists(file_path):
             attendance_file = file_path
-            st.success(f"✅ File loaded: {date_str}.xlsx")
+            st.success(f"✅ Auto-fetched: {file_path}")
         else:
-            st.warning(f"⚠️ File for {date_str} not found in 'daily_files' folder.")
+            st.warning(f"⚠️ File '{file_path}' not found in the main repository folder.")
 
 # --- Processing Logic ---
 if attendance_file:
     try:
-        att_df = pd.read_excel(attendance_file) if str(attendance_file).endswith('.xlsx') else pd.read_csv(attendance_file)
-        st.write("File processed successfully.")
+        # Handle string path (auto-fetch) vs UploadedFile object (manual)
+        file_name = attendance_file if isinstance(attendance_file, str) else attendance_file.name
+        
+        if file_name.endswith('.csv'):
+            att_df = pd.read_csv(attendance_file)
+        else:
+            att_df = pd.read_excel(attendance_file)
+            
+        st.write("File processed successfully. Ready for metrics!")
         # ... (Include your processing logic here)
     except Exception as e:
         st.error(f"Error processing file: {e}")
