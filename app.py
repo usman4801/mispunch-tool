@@ -57,7 +57,6 @@ if bin_str:
             background-attachment: fixed;
         }}
         .block-container {{
-            /* Opacity ko 0.85 se 0.94 kar diya taake photo halki/dim nazar aaye */
             background-color: rgba(255, 255, 255, 0.94);
             padding: 2rem;
             border-radius: 12px;
@@ -116,6 +115,15 @@ if bin_str:
         }}
         div[data-testid="stButton"] button:hover {{
             transform: translateY(-2px);
+        }}
+        
+        .welcome-box {{
+            background: rgba(240, 248, 255, 0.8);
+            border-left: 5px solid #3b82f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: center;
         }}
         </style>
         """,
@@ -267,12 +275,10 @@ up_col1, up_col2 = st.columns([6, 4])
 attendance_file = None
 
 with up_col1:
-    default_start = datetime.now().date() - timedelta(days=5)
-    default_end = datetime.now().date()
-    
+    # YAHAN DEFAULT DATE KHATAM KAR DI GAYI HAI (value=[])
     selected_dates_range = st.date_input(
         "📅 Calendar Auto-Fetch (No file required)", 
-        value=(default_start, default_end)
+        value=[] 
     )
 
 with up_col2:
@@ -318,13 +324,16 @@ elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
         if temp_dfs:
             st.success(f"✅ Auto-fetched {len(valid_files)} file(s) for the selected range!")
         else:
-            st.info("ℹ️ No attendance files found for the selected date range.")
+            st.warning("⚠️ No attendance files found for the selected date range in the repository.")
 
 if temp_dfs:
     att_df = pd.concat(temp_dfs, ignore_index=True)
 else:
     att_df = pd.DataFrame()
 
+# ==========================================
+# MAIN DASHBOARD RENDER LOGIC
+# ==========================================
 if not att_df.empty:
     att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
     id_col = att_df.columns[0]
@@ -473,3 +482,15 @@ if not att_df.empty:
         if os.path.exists(HISTORY_FILE):
             hist_csv = pd.read_csv(HISTORY_FILE).to_csv(index=False).encode('utf-8')
             st.download_button("📂 Download Master Offenders History (Backup)", hist_csv, f"Master_Offenders_History.csv", "text/csv", use_container_width=True)
+
+else:
+    # JAB KOI DATA SELECT NAHI HUA TO YEH WELCOME MESSAGE AAYEGA
+    st.markdown(
+        """
+        <div class='welcome-box'>
+            <h2 style='color: #1e3a8a; margin-top: 0;'>👋 Welcome to the Intelligence Dashboard</h2>
+            <p style='color: #4b5563; font-size: 16px;'>Please select a <b>Date Range</b> from the calendar above or <b>Upload a File</b> to generate and view the attendance insights.</p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
