@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import base64
 import os
+import glob
 
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
@@ -20,10 +21,10 @@ st.markdown(
     header {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Aggressive removal of Toolbar (Blue) and Viewer Badge (Red Crown) */
     [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
     [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
     [data-testid="stDecoration"] {display: none !important; visibility: hidden !important;}
+    [data-testid="collapsedControl"] {display: none !important; visibility: hidden !important;}
     .viewerBadge_container {display: none !important; visibility: hidden !important; opacity: 0 !important;}
     .viewerBadge_link {display: none !important; visibility: hidden !important;}
     #st-toolbar {display: none !important; visibility: hidden !important;}
@@ -102,9 +103,6 @@ if bin_str:
 st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
 st.markdown("---")
 
-# -----------------------------------------------------
-# SIDEBAR CONFIGURATIONS
-# -----------------------------------------------------
 def clean_id(val):
     try:
         return str(int(float(val))).strip()
@@ -112,7 +110,6 @@ def clean_id(val):
         return str(val).strip().lower()
 
 st.sidebar.header("⚙️ 7-Hours Configuration")
-st.sidebar.info("Tamam 7-hours employees (12 mins buffer up/down) yahan pre-loaded hain.")
 seven_hours_default = (
     "205854274, 206247771, 206930332, 206915012, 206065208, 206136723, 206200811, "
     "205853892, 206192237, 206361774, 206348020, 206348027, 206348019, 206368537, "
@@ -127,9 +124,6 @@ seven_hours_default = (
 manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", value=seven_hours_default)
 manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
-st.sidebar.markdown("---")
-st.sidebar.header("🚫 Exclude / Ignore Employees")
-st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 10PM - 8AM shift wale).")
 exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203073699, 204043092, 203160007, 113015344")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
@@ -142,11 +136,9 @@ with col2:
         options=["Full Day / 24 Hours Data", "Day Shift Only", "Night Shift Only", "Mid Shift Only"]
     )
 
-# ==========================================
-# CALENDAR AUTO-FETCH & FILE UPLOAD INTEGRATION
-# ==========================================
 up_col1, up_col2 = st.columns(2)
 attendance_file = None
+active_file_date = datetime.now().strftime("%Y-%m-%d")
 
 with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
@@ -157,6 +149,7 @@ with up_col2:
     st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch</b></div>", unsafe_allow_html=True)
     selected_calendar_date = st.date_input("Select date", datetime.now(), label_visibility="collapsed")
     date_str = selected_calendar_date.strftime("%Y-%m-%d")
+    active_file_date = date_str
     
     file_path = f"{date_str}.xlsx.xlsx"
     
@@ -166,7 +159,6 @@ with up_col2:
             st.success(f"✅ Auto-fetched: {file_path}")
         else:
             st.info(f"ℹ️ File '{file_path}' not found in the main folder.")
-
 
 @st.cache_data
 def load_permanent_roster():
@@ -194,18 +186,90 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# MEMORY DATABASE LOGIC (FRESH STATE LOGIC)
 HISTORY_FILE = 'offenders_history.csv'
 
-def update_and_get_offenders_history(current_offenders_df):
-    # Automatically reset history if it contains mixed old data, keeping only current date clean
-    today_date = datetime.now().strftime("%Y-%m-%d")
+def parse_time(time_val):
+    if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]: return None
+    for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%H:%M:%S"]:
+        try:
+            return datetime.strptime(str(time_val).strip(), fmt).time()
+        except:
+            continue
+    return None
+
+# AUTO-BUILD HISTORY FROM ALL 2026-08-XX FILES IN FOLDER
+def rebuild_all_history():
+    all_records = []
+    all_files = glob.glob("2026-08-*.xlsx.xlsx") + glob.glob("2026-08-*.csv") + glob.glob("2026-08-*.xls")
     
-    # Fresh initialization to avoid any mismatch
-    history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
+    for fpath in all_files:
+        # Extract date from filename e.g. 2026-08-01.xlsx.xlsx -> 2026-08-01
+        f_date = os.path.basename(fpath).split(".")[0]
+        try:
+            df = pd.read_excel(fpath, sheet_name=0, dtype=str)
+        except:
+            try:
+                df = pd.read_csv(fpath, dtype=str)
+            except:
+                continue
+                
+        df.columns = [str(c).strip() for c in df.columns.tolist()]
+        if len(df.columns) < 2: continue
+        id_c, name_c = df.columns[0], df.columns[1]
+        
+        ignore_kw = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
+        p_cols = [c for c in df.columns if not any(k in c.lower() for k in ignore_kw)]
+        if len(p_cols) == 0 and len(df.columns) > 4:
+            p_cols = df.columns[4:].tolist()
+            
+        for _, row in df.iterrows():
+            cid = clean_id(row[id_c])
+            if exclude_list and cid in exclude_list: continue
+            cname = str(row[name_c]).strip()
+            
+            punches = [parse_time(row.get(c)) for c in p_cols]
+            punches = [p for p in punches if p is not None]
+            tp = len(punches)
+            
+            is_7hr = (manual_ids_list and cid in manual_ids_list) or (roster_hours_map.get(cid) == '7 Hours')
+            min_m = 408 if is_7hr else 528
+            max_m = 432 if is_7hr else 552
+            
+            issue = None
+            if tp == 1:
+                issue = "Mispunch"
+            elif tp >= 2 and tp % 2 == 0:
+                dummy_d = datetime(2026, 1, 1)
+                t_sec = 0
+                for i in range(0, tp, 2):
+                    s = datetime.combine(dummy_d, punches[i])
+                    e = datetime.combine(dummy_d, punches[i+1])
+                    if e < s: e += timedelta(days=1)
+                    t_sec += (e - s).total_seconds()
+                eff_m = t_sec / 60
+                if not (min_m <= eff_m <= max_m):
+                    issue = "Defaulter Hours"
+            elif tp > 0 and tp % 2 != 0:
+                issue = "Mispunch"
+                
+            if issue:
+                all_records.append({'Date': f_date, 'P.Soft ID': cid, 'Employee Name': cname, 'Issue Type': issue})
+                
+    if all_records:
+        hist_df = pd.DataFrame(all_records).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
+        hist_df.to_csv(HISTORY_FILE, index=False)
+
+# Run history builder on startup
+rebuild_all_history()
+
+def update_and_get_offenders_history(current_offenders_df, target_date_str):
+    if os.path.exists(HISTORY_FILE):
+        history_df = pd.read_csv(HISTORY_FILE, dtype=str)
+    else:
+        history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
 
     new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
-    new_records['Date'] = today_date
+    new_records['Date'] = target_date_str
     
     combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
     combined_df.to_csv(HISTORY_FILE, index=False)
@@ -225,16 +289,10 @@ if attendance_file is not None:
 
     att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
 
-    # ==========================================
-    # EXCLUDE EMPLOYEES
-    # ==========================================
     if exclude_list:
         att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
         att_df.reset_index(drop=True, inplace=True)
 
-    # ==========================================
-    # ROBUST 7-HOURS & 9-HOURS MAPPING FIX
-    # ==========================================
     def determine_working_hours(row):
         cid = row['Clean_ID']
         if manual_ids_list and cid in manual_ids_list:
@@ -250,28 +308,14 @@ if attendance_file is not None:
     if len(punch_cols) == 0 and len(att_df.columns) > 4:
         punch_cols = att_df.columns[4:].tolist()
 
-    def parse_time(time_val):
-        if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]: return None
-        for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%H:%M:%S"]:
-            try:
-                return datetime.strptime(str(time_val).strip(), fmt).time()
-            except:
-                continue
-        return None
-
     def analyze_row(row):
         punches = [parse_time(row.get(c)) for c in punch_cols]
         punches = [p for p in punches if p is not None]
         total_punches = len(punches)
         
         target_str = str(row.get('Working Hours', '9 Hours'))
-        
-        if '7' in target_str:
-            min_mins = 408  
-            max_mins = 432  
-        else:
-            min_mins = 528  
-            max_mins = 552  
+        min_mins = 408 if '7' in target_str else 528
+        max_mins = 432 if '7' in target_str else 552
 
         if total_punches == 0:
             return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
@@ -316,7 +360,7 @@ if attendance_file is not None:
     temp_combined = pd.concat([base_info, analysis_df], axis=1)
     today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
     
-    historical_counts = update_and_get_offenders_history(today_offenders)
+    historical_counts = update_and_get_offenders_history(today_offenders, active_file_date)
     
     base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
     base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
