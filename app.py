@@ -173,17 +173,12 @@ def parse_time(time_val):
             continue
     return None
 
-# AUTO-BUILD HISTORY & GET AVAILABLE DATES
-def get_available_dates_and_rebuild():
+def rebuild_all_history():
     all_records = []
-    available_dates = []
     all_files = glob.glob("2026-08-*.xlsx.xlsx") + glob.glob("2026-08-*.csv") + glob.glob("2026-08-*.xls")
     
     for fpath in all_files:
         f_date = os.path.basename(fpath).split(".")[0]
-        if f_date not in available_dates:
-            available_dates.append(f_date)
-            
         try:
             df = pd.read_excel(fpath, sheet_name=0, dtype=str)
         except:
@@ -237,17 +232,15 @@ def get_available_dates_and_rebuild():
     if all_records:
         hist_df = pd.DataFrame(all_records).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
         hist_df.to_csv(HISTORY_FILE, index=False)
-        
-    return sorted(available_dates, reverse=True)
 
-available_dates_list = get_available_dates_and_rebuild()
+rebuild_all_history()
 
 # ==========================================
-# UI: FILE UPLOAD & MULTI-DATE SELECTOR
+# UI: FILE UPLOAD & CALENDAR RANGE AUTO-FETCH
 # ==========================================
 up_col1, up_col2 = st.columns(2)
 attendance_file = None
-selected_dates = []
+combined_range_df = pd.DataFrame()
 
 with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
@@ -255,34 +248,57 @@ with up_col1:
         attendance_file = uploaded_manual_file
 
 with up_col2:
-    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Select Multiple Dates (Multi-Select)</b></div>", unsafe_allow_html=True)
-    if available_dates_list:
-        selected_dates = st.multiselect("Choose dates to analyze & combine", options=available_dates_list, default=available_dates_list[:1], label_visibility="collapsed")
-    else:
-        st.info("ℹ️ No date files found in folder.")
+    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch (Date Range)</b></div>", unsafe_allow_html=True)
+    
+    # Date range selector (Defaults to today or current month range)
+    default_start = datetime.now().date() - timedelta(days=5)
+    default_end = datetime.now().date()
+    
+    selected_dates_range = st.date_input(
+        "Select date range", 
+        value=(default_start, default_end),
+        label_visibility="collapsed"
+    )
 
-# Helper function to process single or combined multi-dates dataframe
-def process_attendance_data(target_files):
-    combined_raw_df = pd.DataFrame()
-    for fpath in target_files:
-        try:
-            df = pd.read_excel(fpath, sheet_name=0, dtype=str)
-        except:
-            try:
-                df = pd.read_csv(fpath, dtype=str)
-            except:
-                continue
-        combined_raw_df = pd.concat([combined_raw_df, df], ignore_index=True)
-    return combined_raw_df
-
+# Process files based on upload or date range selection
 if uploaded_manual_file is not None:
     try:
         att_df = pd.read_excel(uploaded_manual_file, sheet_name=0, dtype=str)
     except:
         att_df = pd.read_csv(uploaded_manual_file, dtype=str)
-elif selected_dates:
-    file_paths = [f"{d}.xlsx.xlsx" for d in selected_dates if os.path.exists(f"{d}.xlsx.xlsx")]
-    att_df = process_attendance_data(file_paths)
+elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
+    start_d, end_d = selected_dates_range
+    # Generate all dates between start and end date
+    delta = end_d - start_d
+    date_list = [start_d + timedelta(days=i) for i in range(delta.days + 1)]
+    
+    valid_files = []
+    for d in date_list:
+        d_str = d.strftime("%Y-%m-%d")
+        f_path = f"{d_str}.xlsx.xlsx"
+        if os.path.exists(f_path):
+            valid_files.append(f_path)
+            
+    if valid_files:
+        temp_dfs = []
+        for f in valid_files:
+            try:
+                tdf = pd.read_excel(f, sheet_name=0, dtype=str)
+                temp_dfs.append(tdf)
+            except:
+                try:
+                    tdf = pd.read_csv(f, dtype=str)
+                    temp_dfs.append(tdf)
+                except:
+                    pass
+        if temp_dfs:
+            att_df = pd.concat(temp_dfs, ignore_index=True)
+            st.success(f"✅ Auto-fetched {len(valid_files)} file(s) for the selected range!")
+        else:
+            att_df = pd.DataFrame()
+    else:
+        st.info("ℹ️ No attendance files found for the selected date range.")
+        att_df = pd.DataFrame()
 else:
     att_df = pd.DataFrame()
 
@@ -361,7 +377,6 @@ if not att_df.empty:
         'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
-    # Get Master History Counts for Repeated Badges
     if os.path.exists(HISTORY_FILE):
         hist_df = pd.read_csv(HISTORY_FILE, dtype=str)
         historical_counts = hist_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
