@@ -28,7 +28,7 @@ st.markdown(
     .viewerBadge_link {display: none !important; visibility: hidden !important;}
     #st-toolbar {display: none !important; visibility: hidden !important;}
     .stActionButton {display: none !important; visibility: hidden !important;}
-    div[class^="viewerBadge"] {display: none !important; }
+    div[class^="viewerBadge"] {display: none !important;}
     </style>
     """,
     unsafe_allow_html=True
@@ -154,7 +154,7 @@ with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
     if uploaded_manual_file: 
         attendance_file = uploaded_manual_file
-        is_auto_fetched = False  # Manual upload will not update history
+        is_auto_fetched = False
 
 with up_col2:
     st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch</b></div>", unsafe_allow_html=True)
@@ -167,7 +167,7 @@ with up_col2:
     if not uploaded_manual_file:
         if os.path.exists(file_path):
             attendance_file = file_path
-            is_auto_fetched = True  # Auto-fetched GitHub file will track history securely
+            is_auto_fetched = True
             st.success(f"✅ Auto-fetched: {file_path}")
         else:
             st.info(f"ℹ️ File '{file_path}' not found in the main folder.")
@@ -199,7 +199,7 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# MEMORY DATABASE LOGIC WITH DATE-WISE DUPLICATE PREVENTION FOR AUTO-FETCHED FILES
+# MEMORY DATABASE LOGIC (SEPARATE TRACKING FOR MISPUNCHES & DEFAULTERS)
 HISTORY_FILE = 'offenders_history.csv'
 
 def update_and_get_offenders_history(current_offenders_df, target_date_str, should_update):
@@ -210,15 +210,20 @@ def update_and_get_offenders_history(current_offenders_df, target_date_str, shou
 
     if not should_update:
         if not history_df.empty:
-            return history_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+            # Separate counts for Mispunch and Defaulter Hours
+            misp_counts = history_df[history_df['Issue Type'] == 'Mispunch'].groupby('P.Soft ID').size().reset_index(name='Mispunch_Offenses')
+            def_counts = history_df[history_df['Issue Type'] == 'Defaulter Hours'].groupby('P.Soft ID').size().reset_index(name='Defaulter_Offenses')
+            return misp_counts, def_counts
         else:
-            return pd.DataFrame(columns=['P.Soft ID', 'Total Offenses'])
+            return pd.DataFrame(columns=['P.Soft ID', 'Mispunch_Offenses']), pd.DataFrame(columns=['P.Soft ID', 'Defaulter_Offenses'])
 
+    # Check if this date already exists in history to prevent duplicate double-counting on same day
     if not history_df.empty and 'Date' in history_df.columns:
         existing_dates = history_df['Date'].astype(str).values
         if target_date_str in existing_dates:
-            offense_counts = history_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
-            return offense_counts
+            misp_counts = history_df[history_df['Issue Type'] == 'Mispunch'].groupby('P.Soft ID').size().reset_index(name='Mispunch_Offenses')
+            def_counts = history_df[history_df['Issue Type'] == 'Defaulter Hours'].groupby('P.Soft ID').size().reset_index(name='Defaulter_Offenses')
+            return misp_counts, def_counts
 
     new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
     new_records['Date'] = target_date_str
@@ -226,8 +231,9 @@ def update_and_get_offenders_history(current_offenders_df, target_date_str, shou
     combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
     combined_df.to_csv(HISTORY_FILE, index=False)
     
-    offense_counts = combined_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
-    return offense_counts
+    misp_counts = combined_df[combined_df['Issue Type'] == 'Mispunch'].groupby('P.Soft ID').size().reset_index(name='Mispunch_Offenses')
+    def_counts = combined_df[combined_df['Issue Type'] == 'Defaulter Hours'].groupby('P.Soft ID').size().reset_index(name='Defaulter_Offenses')
+    return misp_counts, def_counts
 
 if attendance_file is not None:
     try:
@@ -253,13 +259,10 @@ if attendance_file is not None:
     # ==========================================
     def determine_working_hours(row):
         cid = row['Clean_ID']
-        # 1. Manual Sidebar IDs check (Highest Priority)
         if manual_ids_list and cid in manual_ids_list:
             return "7 Hours"
-        # 2. Permanent Roster check from HC.xlsx
         if roster_hours_map and cid in roster_hours_map:
             return roster_hours_map[cid]
-        # Default fallback
         return "9 Hours"
 
     att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
@@ -286,11 +289,11 @@ if attendance_file is not None:
         target_str = str(row.get('Working Hours', '9 Hours'))
         
         if '7' in target_str:
-            min_mins = 408  # 7 hours target (420 mins) - 12 mins buffer
-            max_mins = 432  # 7 hours target (420 mins) + 12 mins buffer
+            min_mins = 408  
+            max_mins = 432  
         else:
-            min_mins = 528  # 9 hours target (540 mins) - 12 mins buffer
-            max_mins = 552  # 9 hours target (540 mins) + 12 mins buffer
+            min_mins = 528  
+            max_mins = 552  
 
         if total_punches == 0:
             return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
@@ -335,18 +338,20 @@ if attendance_file is not None:
     temp_combined = pd.concat([base_info, analysis_df], axis=1)
     today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
     
-    historical_counts = update_and_get_offenders_history(today_offenders, active_file_date, is_auto_fetched)
+    misp_hist, def_hist = update_and_get_offenders_history(today_offenders, active_file_date, is_auto_fetched)
     
-    base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
-    base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
+    base_info = base_info.merge(misp_hist, on='P.Soft ID', how='left')
+    base_info = base_info.merge(def_hist, on='P.Soft ID', how='left')
+    base_info['Mispunch_Offenses'] = base_info['Mispunch_Offenses'].fillna(0).astype(int)
+    base_info['Defaulter_Offenses'] = base_info['Defaulter_Offenses'].fillna(0).astype(int)
     
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
     
-    repeated_mispunches = final_df[(final_df['Total Offenses'] > 1) & (final_df['Issue Type'] == "Mispunch")]
-    repeated_defaulters = final_df[(final_df['Total Offenses'] > 1) & (final_df['Issue Type'] == "Defaulter Hours")]
+    repeated_mispunches = final_df[(final_df['Mispunch_Offenses'] > 1) & (final_df['Issue Type'] == "Mispunch")]
+    repeated_defaulters = final_df[(final_df['Defaulter_Offenses'] > 1) & (final_df['Issue Type'] == "Defaulter Hours")]
 
     if "selected_view" not in st.session_state:
         st.session_state.selected_view = "all"
@@ -391,13 +396,13 @@ if attendance_file is not None:
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
-    display_df = display_df.drop(columns=['Issue Type'])
+    display_df = display_df.drop(columns=['Issue Type', 'Mispunch_Offenses', 'Defaulter_Offenses'], errors='ignore')
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
     st.markdown("---")
     down_col1, down_col2 = st.columns(2)
     with down_col1:
-        csv = final_df.drop(columns=['Issue Type']).to_csv(index=False).encode('utf-8')
+        csv = final_df.drop(columns=['Issue Type', 'Mispunch_Offenses', 'Defaulter_Offenses'], errors='ignore').to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download Today's Report (CSV)", csv, f"Attendance_Report_{selected_warehouse}.csv", "text/csv", type="primary", use_container_width=True)
     with down_col2:
         if os.path.exists(HISTORY_FILE):
