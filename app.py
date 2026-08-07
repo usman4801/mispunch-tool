@@ -100,7 +100,10 @@ if bin_str:
         unsafe_allow_html=True
     )
 
-st.title("📊 Attendance Mispunch & Repeated Defaulter Intelligence")
+# ==========================================
+# PURPLE HEADING 
+# ==========================================
+st.markdown("<h1 style='color: #6a1b9a; font-weight: 800;'>📊 Attendance Mispunch & Repeated Defaulter Intelligence</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 def clean_id(val):
@@ -245,7 +248,7 @@ with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
 
 with up_col2:
-    # Yahan naya text update kar diya gaya hai
+    # Auto-fetch ka naya text
     st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch (No file required)</b></div>", unsafe_allow_html=True)
     
     default_start = datetime.now().date() - timedelta(days=5)
@@ -375,7 +378,6 @@ if not att_df.empty:
         num = (idx // 2) + 1
         punches_clean[f"{label} ({num})" if num > 1 else label] = att_df[col].apply(lambda x: parse_time(x).strftime("%H:%M") if parse_time(x) else "")
 
-    # Date column ko base info mein shamil kiya hai taake table mein pehle nazar aaye
     base_info = pd.DataFrame({
         'Date': att_df['Date'] if 'Date' in att_df.columns else datetime.now().strftime("%Y-%m-%d"),
         'P.Soft ID': att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
