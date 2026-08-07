@@ -6,7 +6,32 @@ import os
 
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# ==========================================
+# FORCE HIDE ALL STREAMLIT BADGES & ICONS
+# ==========================================
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Aggressive removal of Toolbar (Blue) and Viewer Badge (Red Crown) */
+    [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stDecoration"] {display: none !important; visibility: hidden !important;}
+    .viewerBadge_container {display: none !important; visibility: hidden !important; opacity: 0 !important;}
+    .viewerBadge_link {display: none !important; visibility: hidden !important;}
+    #st-toolbar {display: none !important; visibility: hidden !important;}
+    .stActionButton {display: none !important; visibility: hidden !important;}
+    div[class^="viewerBadge"] {display: none !important;}
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
 def get_base64_of_bin_file(bin_file):
@@ -23,9 +48,6 @@ if bin_str:
     st.markdown(
         f"""
         <style>
-        #MainMenu {{visibility: hidden;}}
-        header {{visibility: hidden;}}
-        footer {{visibility: hidden;}}
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
@@ -111,6 +133,18 @@ st.sidebar.info("In logon ka data processing se bilkul nikal diya jayega (e.g. 1
 exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203073699, 204043092, 203160007, 113015344")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
+# HISTORY RESET OPTION IN SIDEBAR
+st.sidebar.markdown("---")
+st.sidebar.header("🛠️ History Management")
+HISTORY_FILE = 'offenders_history.csv'
+if st.sidebar.button("🗑️ Reset History Database"):
+    if os.path.exists(HISTORY_FILE):
+        os.remove(HISTORY_FILE)
+        st.sidebar.success("History successfully cleared!")
+        st.rerun()
+    else:
+        st.sidebar.info("No history file found.")
+
 col1, col2 = st.columns([3, 7])
 with col1:
     selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"])
@@ -173,8 +207,6 @@ def load_permanent_roster():
 roster_hours_map = load_permanent_roster()
 
 # MEMORY DATABASE LOGIC
-HISTORY_FILE = 'offenders_history.csv'
-
 def update_and_get_offenders_history(current_offenders_df):
     today_date = datetime.now().strftime("%Y-%m-%d")
     if os.path.exists(HISTORY_FILE):
@@ -215,13 +247,10 @@ if attendance_file is not None:
     # ==========================================
     def determine_working_hours(row):
         cid = row['Clean_ID']
-        # 1. Manual Sidebar IDs check (Highest Priority)
         if manual_ids_list and cid in manual_ids_list:
             return "7 Hours"
-        # 2. Permanent Roster check from HC.xlsx
         if roster_hours_map and cid in roster_hours_map:
             return roster_hours_map[cid]
-        # Default fallback
         return "9 Hours"
 
     att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
@@ -248,11 +277,11 @@ if attendance_file is not None:
         target_str = str(row.get('Working Hours', '9 Hours'))
         
         if '7' in target_str:
-            min_mins = 408  # 7 hours target (420 mins) - 12 mins buffer
-            max_mins = 432  # 7 hours target (420 mins) + 12 mins buffer
+            min_mins = 408  
+            max_mins = 432  
         else:
-            min_mins = 528  # 9 hours target (540 mins) - 12 mins buffer
-            max_mins = 552  # 9 hours target (540 mins) + 12 mins buffer
+            min_mins = 528  
+            max_mins = 552  
 
         if total_punches == 0:
             return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
