@@ -27,20 +27,17 @@ def add_bg_from_local(image_file):
         unsafe_allow_html=True
         )
     except Exception as e:
-        pass # Agar file na milay tou app crash na ho
+        pass 
 
-# Add background (GitHub mein file ka naam 'bg.jpeg.jpeg' hai)
 add_bg_from_local('bg.jpeg.jpeg')
 
-# --- CSS Styles (Fork icon hide, Blue Borders & Block Design) ---
+# --- CSS Styles (Original Block Design & Blue Borders) ---
 st.markdown("""
     <style>
-    /* Hide Streamlit Top Menu, Fork icon, and Footer */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Beautiful Blue Border for File Uploader Box */
     [data-testid="stFileUploadDropzone"] {
         border: 2px dashed #0061ff !important;
         background-color: rgba(255, 255, 255, 0.7);
@@ -48,7 +45,7 @@ st.markdown("""
         padding: 20px;
     }
     
-    /* Original Block Design Metrics Card Styles */
+    /* Solid Block Design */
     .metric-card { 
         padding: 22px; 
         border-radius: 12px; 
@@ -56,12 +53,13 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
         margin-bottom: 20px;
     }
-    .card-blue { background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }
-    .card-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-    .card-orange { background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }
-    .card-purple { background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }
-    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
-    .card-value { font-size: 36px; font-weight: 800; }
+    .card-blue { background: #0061ff; } /* Original Block Colors */
+    .card-orange { background: #f5af19; }
+    .card-purple { background: #8e2de2; }
+    .card-green { background: #11998e; }
+    
+    .card-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+    .card-value { font-size: 38px; font-weight: 800; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -82,9 +80,7 @@ manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids
 # --- Layout ---
 input_col1, input_col2 = st.columns(2)
 attendance_file = None
-active_date = datetime.now()
 
-# --- Input Sections ---
 with input_col1:
     st.markdown("##### 📥 Manual File Upload")
     uploaded_manual_file = st.file_uploader("Upload file", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
@@ -93,10 +89,8 @@ with input_col1:
 with input_col2:
     st.markdown("##### 📅 Calendar Auto-Fetch")
     selected_calendar_date = st.date_input("Select date", datetime.now(), label_visibility="collapsed")
-    active_date = selected_calendar_date
     date_str = selected_calendar_date.strftime("%Y-%m-%d")
     
-    # Path format matching your GitHub repository structure
     file_path = f"{date_str}.xlsx.xlsx"
     
     if not uploaded_manual_file:
@@ -106,24 +100,32 @@ with input_col2:
         else:
             st.warning(f"⚠️ File '{file_path}' not found in the main repository folder.")
 
-# --- Processing Logic & Original Block Design ---
+# --- Processing Logic & Block Design ---
 if attendance_file:
     try:
-        # Handle string path (auto-fetch) vs UploadedFile object (manual)
         file_name = attendance_file if isinstance(attendance_file, str) else attendance_file.name
-        
         if file_name.endswith('.csv'):
             att_df = pd.read_csv(attendance_file)
         else:
             att_df = pd.read_excel(attendance_file)
             
         st.markdown("---")
-        st.markdown("### 📈 Daily Metrics")
         
-        # Calculate Total Records just to verify it's working
-        total_records = len(att_df) if not att_df.empty else 0
+        # ----- METRICS CALCULATIONS -----
+        # Note: In variables ko apni sheet ke column names ke mutabiq theek kar lein
+        total_records = len(att_df)
         
-        # UI: Original Block Layout Metrics
+        # Misaal ke tor par, agar "Status" column mein Mispunch likha hai:
+        # mispunches_count = len(att_df[att_df['Status'].astype(str).str.contains('Mispunch', case=False, na=False)])
+        mispunches_count = 0 # Apni calculation yahan dalein
+        
+        pending_items_count = 0 # Apni calculation yahan dalein
+        
+        # 7 Hrs Defaulters count ID ki list se check kar ke:
+        # defaulters_count = len(att_df[att_df['Employee ID'].astype(str).isin(manual_ids_list)])
+        defaulters_count = 0 # Apni calculation yahan dalein
+        
+        # ----- TILES / CARDS LAYOUT -----
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -138,7 +140,7 @@ if attendance_file:
             st.markdown(f'''
                 <div class="metric-card card-orange">
                     <div class="card-title">Pending Items</div>
-                    <div class="card-value">-</div>
+                    <div class="card-value">{pending_items_count}</div>
                 </div>
             ''', unsafe_allow_html=True)
             
@@ -146,15 +148,15 @@ if attendance_file:
             st.markdown(f'''
                 <div class="metric-card card-purple">
                     <div class="card-title">Mispunches</div>
-                    <div class="card-value">-</div>
+                    <div class="card-value">{mispunches_count}</div>
                 </div>
             ''', unsafe_allow_html=True)
             
         with col4:
             st.markdown(f'''
                 <div class="metric-card card-green">
-                    <div class="card-title">7-Hr Defaulters</div>
-                    <div class="card-value">-</div>
+                    <div class="card-title">7-Hrs Defaulters</div>
+                    <div class="card-value">{defaulters_count}</div>
                 </div>
             ''', unsafe_allow_html=True)
             
