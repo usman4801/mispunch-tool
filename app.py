@@ -6,32 +6,7 @@ import os
 
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# ==========================================
-# FORCE HIDE ALL STREAMLIT BADGES & ICONS
-# ==========================================
-st.markdown(
-    """
-    <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Aggressive removal of Toolbar (Blue) and Viewer Badge (Red Crown) */
-    [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
-    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
-    [data-testid="stDecoration"] {display: none !important; visibility: hidden !important;}
-    .viewerBadge_container {display: none !important; visibility: hidden !important; opacity: 0 !important;}
-    .viewerBadge_link {display: none !important; visibility: hidden !important;}
-    #st-toolbar {display: none !important; visibility: hidden !important;}
-    .stActionButton {display: none !important; visibility: hidden !important;}
-    div[class^="viewerBadge"] {display: none !important;}
-    </style>
-    """,
-    unsafe_allow_html=True
+    layout="wide"
 )
 
 def get_base64_of_bin_file(bin_file):
@@ -48,6 +23,9 @@ if bin_str:
     st.markdown(
         f"""
         <style>
+        #MainMenu {{visibility: hidden;}}
+        header {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
         .stApp {{
             background-image: url("data:image/jpeg;base64,{bin_str}");
             background-size: cover;
@@ -147,27 +125,22 @@ with col2:
 # ==========================================
 up_col1, up_col2 = st.columns(2)
 attendance_file = None
-is_auto_fetched = False
-active_file_date = datetime.now().strftime("%Y-%m-%d")
 
 with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
     if uploaded_manual_file: 
         attendance_file = uploaded_manual_file
-        is_auto_fetched = False
 
 with up_col2:
     st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch</b></div>", unsafe_allow_html=True)
     selected_calendar_date = st.date_input("Select date", datetime.now(), label_visibility="collapsed")
     date_str = selected_calendar_date.strftime("%Y-%m-%d")
-    active_file_date = date_str
     
     file_path = f"{date_str}.xlsx.xlsx"
     
     if not uploaded_manual_file:
         if os.path.exists(file_path):
             attendance_file = file_path
-            is_auto_fetched = True
             st.success(f"✅ Auto-fetched: {file_path}")
         else:
             st.info(f"ℹ️ File '{file_path}' not found in the main folder.")
@@ -202,26 +175,15 @@ roster_hours_map = load_permanent_roster()
 # MEMORY DATABASE LOGIC
 HISTORY_FILE = 'offenders_history.csv'
 
-def update_and_get_offenders_history(current_offenders_df, target_date_str, should_update):
+def update_and_get_offenders_history(current_offenders_df):
+    today_date = datetime.now().strftime("%Y-%m-%d")
     if os.path.exists(HISTORY_FILE):
         history_df = pd.read_csv(HISTORY_FILE, dtype=str)
     else:
         history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
 
-    if not should_update:
-        if not history_df.empty:
-            return history_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
-        else:
-            return pd.DataFrame(columns=['P.Soft ID', 'Total Offenses'])
-
-    if not history_df.empty and 'Date' in history_df.columns:
-        existing_dates = history_df['Date'].astype(str).values
-        if target_date_str in existing_dates:
-            offense_counts = history_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
-            return offense_counts
-
     new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
-    new_records['Date'] = target_date_str
+    new_records['Date'] = today_date
     
     combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
     combined_df.to_csv(HISTORY_FILE, index=False)
@@ -253,10 +215,13 @@ if attendance_file is not None:
     # ==========================================
     def determine_working_hours(row):
         cid = row['Clean_ID']
+        # 1. Manual Sidebar IDs check (Highest Priority)
         if manual_ids_list and cid in manual_ids_list:
             return "7 Hours"
+        # 2. Permanent Roster check from HC.xlsx
         if roster_hours_map and cid in roster_hours_map:
             return roster_hours_map[cid]
+        # Default fallback
         return "9 Hours"
 
     att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
@@ -283,11 +248,11 @@ if attendance_file is not None:
         target_str = str(row.get('Working Hours', '9 Hours'))
         
         if '7' in target_str:
-            min_mins = 408  
-            max_mins = 432  
+            min_mins = 408  # 7 hours target (420 mins) - 12 mins buffer
+            max_mins = 432  # 7 hours target (420 mins) + 12 mins buffer
         else:
-            min_mins = 528  
-            max_mins = 552  
+            min_mins = 528  # 9 hours target (540 mins) - 12 mins buffer
+            max_mins = 552  # 9 hours target (540 mins) + 12 mins buffer
 
         if total_punches == 0:
             return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
@@ -332,7 +297,7 @@ if attendance_file is not None:
     temp_combined = pd.concat([base_info, analysis_df], axis=1)
     today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
     
-    historical_counts = update_and_get_offenders_history(today_offenders, active_file_date, is_auto_fetched)
+    historical_counts = update_and_get_offenders_history(today_offenders)
     
     base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
     base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
