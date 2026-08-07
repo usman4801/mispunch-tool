@@ -57,18 +57,27 @@ if bin_str:
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.95);
+            /* Yahan background thora transparent kar diya taake photo ziada nazar aaye (0.95 -> 0.85) */
+            background-color: rgba(255, 255, 255, 0.85);
             padding: 2rem;
             border-radius: 12px;
             margin-top: 1.5rem;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
         }}
-        div[data-testid="stFileUploader"] {{
+        
+        /* BLUE BORDER AB CALENDAR PAR SHIFT HO GAYA HAI */
+        div[data-testid="stDateInput"] {{
             border: 2px dashed #3b82f6 !important;
             padding: 18px !important;
             border-radius: 12px !important;
             background: rgba(240, 248, 255, 0.5);
         }}
+        div[data-testid="stDateInput"] label p {{
+            font-weight: 700 !important;
+            color: #1e3a8a !important;
+            font-size: 15px !important;
+        }}
+
         .metric-card {{
             padding: 22px;
             border-radius: 12px 12px 0 0;
@@ -132,7 +141,8 @@ exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_id
 
 col1, col2 = st.columns([3, 7])
 with col1:
-    selected_warehouse = st.selectbox("Warehouse", options=["AUH1", "DXB5", "DXB3"])
+    # Warehouse ko Site kar diya gaya hai
+    selected_warehouse = st.selectbox("Site", options=["AUH1", "DXB5", "DXB3"])
 with col2:
     upload_mode = st.selectbox(
         "Shift / Mode", 
@@ -239,26 +249,24 @@ def rebuild_all_history():
 rebuild_all_history()
 
 # ==========================================
-# UI: FILE UPLOAD & CALENDAR RANGE AUTO-FETCH
+# UI: FILE UPLOAD & CALENDAR RANGE AUTO-FETCH (SWAPPED COLUMNS)
 # ==========================================
-up_col1, up_col2 = st.columns(2)
+# Left column ab bari (60%) aur right choti (40%) hogi
+up_col1, up_col2 = st.columns([6, 4])
 attendance_file = None
 
 with up_col1:
-    uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
-
-with up_col2:
-    # Auto-fetch ka naya text
-    st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch (No file required)</b></div>", unsafe_allow_html=True)
-    
     default_start = datetime.now().date() - timedelta(days=5)
     default_end = datetime.now().date()
     
     selected_dates_range = st.date_input(
-        "Select date range", 
-        value=(default_start, default_end),
-        label_visibility="collapsed"
+        "📅 Calendar Auto-Fetch (No file required)", 
+        value=(default_start, default_end)
     )
+
+with up_col2:
+    # Upload section right pe aur usmein Excel Emoji 📗
+    uploaded_manual_file = st.file_uploader("📗 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
 
 temp_dfs = []
 
