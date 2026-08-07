@@ -6,7 +6,8 @@ import os
 
 st.set_page_config(
     page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # ==========================================
