@@ -28,7 +28,7 @@ st.markdown(
     .viewerBadge_link {display: none !important; visibility: hidden !important;}
     #st-toolbar {display: none !important; visibility: hidden !important;}
     .stActionButton {display: none !important; visibility: hidden !important;}
-    div[class^="viewerBadge"] {display: none !important;}
+    div[class^="viewerBadge"] {display: none !important; }
     </style>
     """,
     unsafe_allow_html=True
@@ -147,22 +147,27 @@ with col2:
 # ==========================================
 up_col1, up_col2 = st.columns(2)
 attendance_file = None
+is_auto_fetched = False
+active_file_date = datetime.now().strftime("%Y-%m-%d")
 
 with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
     if uploaded_manual_file: 
         attendance_file = uploaded_manual_file
+        is_auto_fetched = False  # Manual upload will not update history
 
 with up_col2:
     st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch</b></div>", unsafe_allow_html=True)
     selected_calendar_date = st.date_input("Select date", datetime.now(), label_visibility="collapsed")
     date_str = selected_calendar_date.strftime("%Y-%m-%d")
+    active_file_date = date_str
     
     file_path = f"{date_str}.xlsx.xlsx"
     
     if not uploaded_manual_file:
         if os.path.exists(file_path):
             attendance_file = file_path
+            is_auto_fetched = True  # Auto-fetched GitHub file will track history securely
             st.success(f"✅ Auto-fetched: {file_path}")
         else:
             st.info(f"ℹ️ File '{file_path}' not found in the main folder.")
@@ -194,18 +199,29 @@ def load_permanent_roster():
 
 roster_hours_map = load_permanent_roster()
 
-# MEMORY DATABASE LOGIC
+# MEMORY DATABASE LOGIC WITH DATE-WISE DUPLICATE PREVENTION FOR AUTO-FETCHED FILES
 HISTORY_FILE = 'offenders_history.csv'
 
-def update_and_get_offenders_history(current_offenders_df):
-    today_date = datetime.now().strftime("%Y-%m-%d")
+def update_and_get_offenders_history(current_offenders_df, target_date_str, should_update):
     if os.path.exists(HISTORY_FILE):
         history_df = pd.read_csv(HISTORY_FILE, dtype=str)
     else:
         history_df = pd.DataFrame(columns=['Date', 'P.Soft ID', 'Employee Name', 'Issue Type'])
 
+    if not should_update:
+        if not history_df.empty:
+            return history_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+        else:
+            return pd.DataFrame(columns=['P.Soft ID', 'Total Offenses'])
+
+    if not history_df.empty and 'Date' in history_df.columns:
+        existing_dates = history_df['Date'].astype(str).values
+        if target_date_str in existing_dates:
+            offense_counts = history_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+            return offense_counts
+
     new_records = current_offenders_df[['P.Soft ID', 'Employee Name', 'Issue Type']].copy()
-    new_records['Date'] = today_date
+    new_records['Date'] = target_date_str
     
     combined_df = pd.concat([history_df, new_records]).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
     combined_df.to_csv(HISTORY_FILE, index=False)
@@ -319,7 +335,7 @@ if attendance_file is not None:
     temp_combined = pd.concat([base_info, analysis_df], axis=1)
     today_offenders = temp_combined[temp_combined['Issue Type'].isin(['Mispunch', 'Defaulter Hours'])]
     
-    historical_counts = update_and_get_offenders_history(today_offenders)
+    historical_counts = update_and_get_offenders_history(today_offenders, active_file_date, is_auto_fetched)
     
     base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
     base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
