@@ -57,7 +57,8 @@ if bin_str:
             background-attachment: fixed;
         }}
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.85);
+            /* Opacity ko 0.85 se 0.94 kar diya taake photo halki/dim nazar aaye */
+            background-color: rgba(255, 255, 255, 0.94);
             padding: 2rem;
             border-radius: 12px;
             margin-top: 1.5rem;
@@ -275,7 +276,6 @@ with up_col1:
     )
 
 with up_col2:
-    # Text change kar diya gaya hai yahan
     uploaded_manual_file = st.file_uploader("📗 Upload File", type=["xlsx", "xls", "csv"])
 
 temp_dfs = []
