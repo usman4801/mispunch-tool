@@ -240,17 +240,13 @@ rebuild_all_history()
 # ==========================================
 up_col1, up_col2 = st.columns(2)
 attendance_file = None
-combined_range_df = pd.DataFrame()
 
 with up_col1:
     uploaded_manual_file = st.file_uploader("📥 Upload Daily Attendance File", type=["xlsx", "xls", "csv"])
-    if uploaded_manual_file: 
-        attendance_file = uploaded_manual_file
 
 with up_col2:
     st.markdown("<div style='margin-bottom: 5px;'><b>📅 Calendar Auto-Fetch (Date Range)</b></div>", unsafe_allow_html=True)
     
-    # Date range selector (Defaults to today or current month range)
     default_start = datetime.now().date() - timedelta(days=5)
     default_end = datetime.now().date()
     
@@ -260,15 +256,21 @@ with up_col2:
         label_visibility="collapsed"
     )
 
-# Process files based on upload or date range selection
+temp_dfs = []
+
 if uploaded_manual_file is not None:
     try:
-        att_df = pd.read_excel(uploaded_manual_file, sheet_name=0, dtype=str)
+        tdf = pd.read_excel(uploaded_manual_file, sheet_name=0, dtype=str)
     except:
-        att_df = pd.read_csv(uploaded_manual_file, dtype=str)
+        tdf = pd.read_csv(uploaded_manual_file, dtype=str)
+    
+    # Agar user manually file upload kare aur usme Date column na ho toh file name se date nikalne ki koshish karein
+    f_name = uploaded_manual_file.name.split('.')[0]
+    tdf['Date'] = f_name if len(f_name) >= 10 else datetime.now().strftime("%Y-%m-%d")
+    temp_dfs.append(tdf)
+
 elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
     start_d, end_d = selected_dates_range
-    # Generate all dates between start and end date
     delta = end_d - start_d
     date_list = [start_d + timedelta(days=i) for i in range(delta.days + 1)]
     
@@ -277,28 +279,28 @@ elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
         d_str = d.strftime("%Y-%m-%d")
         f_path = f"{d_str}.xlsx.xlsx"
         if os.path.exists(f_path):
-            valid_files.append(f_path)
+            valid_files.append((f_path, d_str))
             
     if valid_files:
-        temp_dfs = []
-        for f in valid_files:
+        for f_path, d_str in valid_files:
             try:
-                tdf = pd.read_excel(f, sheet_name=0, dtype=str)
+                tdf = pd.read_excel(f_path, sheet_name=0, dtype=str)
+                tdf['Date'] = d_str  # Har row ke sath date attach kar di
                 temp_dfs.append(tdf)
             except:
                 try:
-                    tdf = pd.read_csv(f, dtype=str)
+                    tdf = pd.read_csv(f_path, dtype=str)
+                    tdf['Date'] = d_str
                     temp_dfs.append(tdf)
                 except:
                     pass
         if temp_dfs:
-            att_df = pd.concat(temp_dfs, ignore_index=True)
             st.success(f"✅ Auto-fetched {len(valid_files)} file(s) for the selected range!")
         else:
-            att_df = pd.DataFrame()
-    else:
-        st.info("ℹ️ No attendance files found for the selected date range.")
-        att_df = pd.DataFrame()
+            st.info("ℹ️ No attendance files found for the selected date range.")
+
+if temp_dfs:
+    att_df = pd.concat(temp_dfs, ignore_index=True)
 else:
     att_df = pd.DataFrame()
 
@@ -323,10 +325,10 @@ if not att_df.empty:
 
     att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
 
-    ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
+    ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id', 'date']
     punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
     if len(punch_cols) == 0 and len(att_df.columns) > 4:
-        punch_cols = att_df.columns[4:].tolist()
+        punch_cols = [c for c in att_df.columns[4:] if c != 'Date']
 
     def analyze_row(row):
         punches = [parse_time(row.get(c)) for c in punch_cols]
@@ -372,7 +374,9 @@ if not att_df.empty:
         num = (idx // 2) + 1
         punches_clean[f"{label} ({num})" if num > 1 else label] = att_df[col].apply(lambda x: parse_time(x).strftime("%H:%M") if parse_time(x) else "")
 
+    # Date column ko base info mein shamil kiya hai taake table mein pehle nazar aaye
     base_info = pd.DataFrame({
+        'Date': att_df['Date'] if 'Date' in att_df.columns else datetime.now().strftime("%Y-%m-%d"),
         'P.Soft ID': att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
         'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
