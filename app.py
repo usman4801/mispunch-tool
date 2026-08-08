@@ -36,7 +36,7 @@ st.markdown(
         background-color: #f8fafc;
     }
     
-    /* SINGLE-PAGE COMPACT CONTAINER TO PREVENT EXTRA SCROLLING */
+    /* SINGLE-PAGE COMPACT CONTAINER */
     .block-container {
         background: #ffffff !important;
         padding: 1.5rem 2rem !important;
@@ -47,50 +47,14 @@ st.markdown(
         max-width: 100% !important;
     }
     
-    /* EXACT 1-TO-1 WELCOME HERO BANNER WITH LAPTOP IMAGE */
-    .welcome-hero {
-        background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #fae8ff 100%);
-        padding: 25px 35px;
-        border-radius: 18px;
-        color: #1e1b4b;
-        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.12);
+    /* DIRECT HEADER IMAGE STYLING */
+    .direct-header-img {
+        width: 100%;
+        border-radius: 16px;
         margin-bottom: 18px;
+        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.15);
         border: 1px solid rgba(216, 180, 254, 0.6);
-        position: relative;
-        overflow: hidden;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .welcome-badge {
-        background: #fef08a;
-        color: #713f12;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 700;
-        display: inline-block;
-        margin-bottom: 6px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    .hero-title {
-        font-size: 26px !important;
-        font-weight: 800 !important;
-        margin: 0 !important;
-        color: #3b0764 !important;
-        letter-spacing: 0.3px;
-    }
-    .hero-subtitle {
-        font-size: 13px;
-        color: #581c87;
-        margin-top: 2px;
-        font-weight: 700;
-    }
-    .hero-desc {
-        font-size: 12px;
-        color: #6b21a8;
-        margin-top: 1px;
-        font-weight: 500;
+        display: block;
     }
 
     /* FILTERS CONTAINER STYLING */
@@ -140,7 +104,7 @@ st.markdown(
         box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4) !important;
     }
 
-    /* FEATURE CARDS (BOTTOM 4 CARDS - COMPACT FOR SINGLE PAGE) */
+    /* FEATURE CARDS */
     .feature-card {
         padding: 14px;
         border-radius: 14px;
@@ -189,49 +153,22 @@ def get_base64_of_bin_file(bin_file):
     except:
         return ""
 
-banner_str = get_base64_of_bin_file('welcome_banner.png')
+header_img_str = get_base64_of_bin_file('header_banner.png')
 
 # Initialize session state for navigation
 if "page_mode" not in st.session_state:
     st.session_state.page_mode = "welcome"
 
 # ==========================================
-# WELCOME SCREEN (1-TO-1 SINGLE PAGE MATCH)
+# WELCOME SCREEN
 # ==========================================
 if st.session_state.page_mode == "welcome":
     
-    # Hero Banner with Laptop Image on Right Side
-    if banner_str:
-        st.markdown(f"""
-            <div class="welcome-hero">
-                <div>
-                    <span class="welcome-badge">⭐ Welcome to</span>
-                    <h1 class="hero-title">Workforce Compliance Monitor</h1>
-                    <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
-                    <p class="hero-desc">Smarter Insights. Stronger Compliance. Better Workforce.</p>
-                </div>
-                <div style="display: flex; align-items: center; gap: 20px;">
-                    <img src="data:image/png;base64,{banner_str}" style="max-height: 110px; border-radius: 10px; object-fit: contain;">
-                    <div style="background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #166534; box-shadow: 0 3px 8px rgba(0,0,0,0.05); text-align: right;">
-                        🟢 System Online<br><span style="color: #4b5563; font-size: 10px;">Live Sync Active</span>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+    # Display the direct header image
+    if header_img_str:
+        st.markdown(f'<img src="data:image/png;base64,{header_img_str}" class="direct-header-img">', unsafe_allow_html=True)
     else:
-        st.markdown("""
-            <div class="welcome-hero">
-                <div>
-                    <span class="welcome-badge">⭐ Welcome to</span>
-                    <h1 class="hero-title">Workforce Compliance Monitor</h1>
-                    <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
-                    <p class="hero-desc">Smarter Insights. Stronger Compliance. Better Workforce.</p>
-                </div>
-                <div style="background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #166534; box-shadow: 0 3px 8px rgba(0,0,0,0.05); text-align: right;">
-                    🟢 System Online<br><span style="color: #4b5563; font-size: 10px;">Live Sync Active</span>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.warning("⚠️ Please upload 'header_banner.png' to GitHub repository.")
 
     # Filter Section (Aligned in 1 row)
     f_col1, f_col2, f_col3 = st.columns([3, 4, 4])
@@ -253,7 +190,7 @@ if st.session_state.page_mode == "welcome":
 
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
-    # Bottom 4 Feature Cards (Compact single-row fit)
+    # Bottom 4 Feature Cards
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown('<div class="feature-card fc-blue"><div style="font-size:20px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
