@@ -88,26 +88,26 @@ st.markdown(
         font-size: 16px;
     }
 
-    /* FEATURE CARDS */
+    /* FEATURE CARDS WITH EXACT MATCHING REFERENCE COLORS */
     .feature-card {
-        padding: 14px;
-        border-radius: 14px;
-        height: 110px;
+        padding: 16px;
+        border-radius: 18px;
+        height: 120px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.03);
-        border: 1px solid rgba(0,0,0,0.04);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1.5px solid;
     }
-    .fc-blue { background: #eff6ff; border-color: #dbeafe; }
-    .fc-orange { background: #fffbeb; border-color: #fef3c7; }
-    .fc-green { background: #f0fdf4; border-color: #dcfce7; }
+    .fc-blue { background: #f0f6ff; border-color: #d2e3fc; }
+    .fc-orange { background: #fefce8; border-color: #fef08a; }
+    .fc-green { background: #f0fdf4; border-color: #bbf7d0; }
     .fc-purple { background: #faf5ff; border-color: #f3e8ff; }
     
-    .fc-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 4px; margin-bottom: 2px; }
-    .fc-text { font-size: 10px; color: #64748b; line-height: 1.2; }
+    .fc-title { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-top: 6px; margin-bottom: 3px; }
+    .fc-text { font-size: 10.5px; color: #475569; line-height: 1.3; font-weight: 500; }
 
     /* METRIC CARDS INSIDE DASHBOARD */
     .metric-card {
@@ -147,7 +147,7 @@ if header_img_str:
 else:
     st.warning("⚠️ Please upload 'header_banner.png' to GitHub repository.")
 
-# Filter Section: Site on left, Calendar taking the remaining prominent space
+# Filter Section: Site on left, Calendar taking the remaining space
 f_col1, f_col2 = st.columns([4, 8])
 with f_col1:
     selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
@@ -409,13 +409,13 @@ else:
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown('<div class="feature-card fc-blue"><div style="font-size:20px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-blue"><div style="font-size:22px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="feature-card fc-orange"><div style="font-size:20px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-orange"><div style="font-size:22px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
     with c3:
-        st.markdown('<div class="feature-card fc-green"><div style="font-size:20px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-green"><div style="font-size:22px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
     with c4:
-        st.markdown('<div class="feature-card fc-purple"><div style="font-size:20px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-purple"><div style="font-size:22px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
 
     st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 15px 0 10px 0;'>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 11px; font-weight: 600; margin: 0;'>Built for a smarter, stronger and compliant workplace</p>", unsafe_allow_html=True)
