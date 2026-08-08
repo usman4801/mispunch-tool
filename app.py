@@ -88,7 +88,7 @@ st.markdown(
         font-size: 16px;
     }
 
-    /* FEATURE CARDS WITH ORIGINAL RICH DARK COLORS */
+    /* FEATURE CARDS */
     .feature-card {
         padding: 16px;
         border-radius: 18px;
@@ -101,10 +101,10 @@ st.markdown(
         box-shadow: 0 4px 15px rgba(0,0,0,0.04);
         border: 1.5px solid;
     }
-    .fc-blue { background: #eef2ff; border-color: #c7d2fe; }
-    .fc-orange { background: #fef3c7; border-color: #fde68a; }
-    .fc-green { background: #ecfdf5; border-color: #a7f3d0; }
-    .fc-purple { background: #fdf4ff; border-color: #f5d0fe; }
+    .fc-blue { background: #f0f6ff; border-color: #d2e3fc; }
+    .fc-orange { background: #fefce8; border-color: #fef08a; }
+    .fc-green { background: #f0fdf4; border-color: #bbf7d0; }
+    .fc-purple { background: #faf5ff; border-color: #f3e8ff; }
     
     .fc-title { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-top: 6px; margin-bottom: 3px; }
     .fc-text { font-size: 10.5px; color: #475569; line-height: 1.3; font-weight: 500; }
@@ -205,7 +205,6 @@ def load_permanent_roster():
     return roster_map
 
 roster_hours_map = load_permanent_roster()
-HISTORY_FILE = 'offenders_history.csv'
 
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]: return None
@@ -216,60 +215,7 @@ def parse_time(time_val):
             continue
     return None
 
-def rebuild_all_history():
-    all_records = []
-    all_files = glob.glob("2026-08-*.xlsx.xlsx") + glob.glob("2026-08-*.csv") + glob.glob("2026-08-*.xls")
-    for fpath in all_files:
-        f_date = os.path.basename(fpath).split(".")[0]
-        try:
-            df = pd.read_excel(fpath, sheet_name=0, dtype=str)
-        except:
-            try:
-                df = pd.read_csv(fpath, dtype=str)
-            except:
-                continue
-        df.columns = [str(c).strip() for c in df.columns.tolist()]
-        if len(df.columns) < 2: continue
-        id_c, name_c = df.columns[0], df.columns[1]
-        ignore_kw = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id']
-        p_cols = [c for c in df.columns if not any(k in c.lower() for k in ignore_kw)]
-        if len(p_cols) == 0 and len(df.columns) > 4:
-            p_cols = df.columns[4:].tolist()
-        for _, row in df.iterrows():
-            cid = clean_id(row[id_c])
-            if exclude_list and cid in exclude_list: continue
-            cname = str(row[name_c]).strip()
-            punches = [parse_time(row.get(c)) for c in p_cols]
-            punches = [p for p in punches if p is not None]
-            tp = len(punches)
-            is_7hr = (manual_ids_list and cid in manual_ids_list) or (roster_hours_map.get(cid) == '7 Hours')
-            min_m = 408 if is_7hr else 528
-            max_m = 432 if is_7hr else 552
-            issue = None
-            if tp == 1:
-                issue = "Mispunch"
-            elif tp >= 2 and tp % 2 == 0:
-                dummy_d = datetime(2026, 1, 1)
-                t_sec = 0
-                for i in range(0, tp, 2):
-                    s = datetime.combine(dummy_d, punches[i])
-                    e = datetime.combine(dummy_d, punches[i+1])
-                    if e < s: e += timedelta(days=1)
-                    t_sec += (e - s).total_seconds()
-                eff_m = t_sec / 60
-                if not (min_m <= eff_m <= max_m):
-                    issue = "Defaulter Hours"
-            elif tp > 0 and tp % 2 != 0:
-                issue = "Mispunch"
-            if issue:
-                all_records.append({'Date': f_date, 'P.Soft ID': cid, 'Employee Name': cname, 'Issue Type': issue})
-    if all_records:
-        hist_df = pd.DataFrame(all_records).drop_duplicates(subset=['Date', 'P.Soft ID', 'Issue Type'])
-        hist_df.to_csv(HISTORY_FILE, index=False)
-
-rebuild_all_history()
-
-# Auto-fetch based on selected calendar range
+# Auto-fetch based on selected calendar range ONLY
 temp_dfs = []
 if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
     start_d, end_d = selected_dates_range
@@ -359,20 +305,31 @@ if not att_df.empty:
         'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
-    if os.path.exists(HISTORY_FILE):
-        hist_df = pd.read_csv(HISTORY_FILE, dtype=str)
-        historical_counts = hist_df.groupby('P.Soft ID').size().reset_index(name='Total Offenses')
+    # Calculate offenses ONLY within the selected date range files
+    current_range_records = []
+    for _, row in base_info.iterrows():
+        it = analysis_df.loc[row.name, 'Issue Type']
+        if it != "Clean":
+            current_range_records.append({'P.Soft ID': row['P.Soft ID'], 'Issue Type': it})
+            
+    if current_range_records:
+        curr_off_df = pd.DataFrame(current_range_records)
+        # Count how many times each ID appears in this selected range
+        offense_counts = curr_off_df.groupby(['P.Soft ID', 'Issue Type']).size().reset_index(name='Range Offense Count')
     else:
-        historical_counts = pd.DataFrame(columns=['P.Soft ID', 'Total Offenses'])
+        offense_counts = pd.DataFrame(columns=['P.Soft ID', 'Issue Type', 'Range Offense Count'])
 
-    base_info = base_info.merge(historical_counts, on='P.Soft ID', how='left')
-    base_info['Total Offenses'] = base_info['Total Offenses'].fillna(0).astype(int)
+    base_info = base_info.merge(offense_counts, on=['P.Soft ID'], how='left')
+    base_info['Range Offense Count'] = base_info['Range Offense Count'].fillna(1).astype(int)
+    
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
-    repeated_mispunches = final_df[(final_df['Total Offenses'] > 1) & (final_df['Issue Type'] == "Mispunch")]
-    repeated_defaulters = final_df[(final_df['Total Offenses'] > 1) & (final_df['Issue Type'] == "Defaulter Hours")]
+    
+    # Repeated within selected range means appeared more than once in this specific range
+    repeated_mispunches = final_df[(final_df['Range Offense Count'] > 1) & (final_df['Issue Type'] == "Mispunch")]
+    repeated_defaulters = final_df[(final_df['Range Offense Count'] > 1) & (final_df['Issue Type'] == "Defaulter Hours")]
 
     if "selected_view" not in st.session_state: st.session_state.selected_view = "all"
 
@@ -402,7 +359,7 @@ if not att_df.empty:
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
-    st.dataframe(display_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
+    st.dataframe(display_df.drop(columns=['Issue Type', 'Range Offense Count']), use_container_width=True, hide_index=True)
 
 else:
     # Feature cards shown when no date range is selected yet
