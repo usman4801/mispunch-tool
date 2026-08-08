@@ -68,33 +68,32 @@ if bin_str:
             border: 1px solid rgba(255, 255, 255, 0.6) !important;
         }}
         
-        /* SHADED CRYSTAL PURPLE HERO BANNER */
+        /* EXACT REFERENCE LIGHT PURPLE CRYSTAL HERO BANNER */
         .hero-banner {{
-            background: linear-gradient(135deg, #3b1443 0%, #512b58 50%, #2a0833 100%);
+            background: linear-gradient(135deg, #b87ad9 0%, #d4a5ec 50%, #f3e8ff 100%);
             padding: 28px 35px;
             border-radius: 18px;
-            color: white;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 10px 25px rgba(59, 20, 67, 0.4);
+            color: #2e1065;
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 10px 25px rgba(184, 122, 217, 0.3);
             margin-bottom: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid rgba(168, 85, 247, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }}
         .hero-title {{
             font-size: 28px !important;
             font-weight: 800 !important;
             margin: 0 !important;
-            color: #ffffff !important;
+            color: #3b0764 !important;
             letter-spacing: 0.5px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }}
         .hero-subtitle {{
             font-size: 14px;
-            color: #e9d5ff;
+            color: #581c87;
             margin-top: 5px;
             margin-bottom: 0;
-            font-weight: 400;
+            font-weight: 600;
         }}
 
         /* CUSTOM CALENDAR STYLING */
@@ -150,7 +149,7 @@ if bin_str:
     )
 
 # ==========================================
-# SHADED CRYSTAL PURPLE HERO BANNER
+# REFERENCE LIGHT PURPLE CRYSTAL HERO BANNER
 # ==========================================
 st.markdown("""
     <div class="hero-banner">
@@ -158,7 +157,7 @@ st.markdown("""
             <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
             <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
         </div>
-        <div style="text-align: right; font-size: 13px; color: #d8b4fe;">
+        <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
             <span>🟢 System Online</span><br>
             <span>Live Sync Active</span>
         </div>
@@ -298,33 +297,16 @@ def rebuild_all_history():
 rebuild_all_history()
 
 # ==========================================
-# UI: FILE UPLOAD & CALENDAR RANGE AUTO-FETCH
+# UI: CALENDAR RANGE AUTO-FETCH (NO MANUAL UPLOAD)
 # ==========================================
-up_col1, up_col2 = st.columns([6, 4])
-attendance_file = None
-
-with up_col1:
-    selected_dates_range = st.date_input(
-        "📅 Calendar Auto-Fetch (No file required)", 
-        value=[] 
-    )
-
-with up_col2:
-    uploaded_manual_file = st.file_uploader("📗 Upload File", type=["xlsx", "xls", "csv"])
+selected_dates_range = st.date_input(
+    "📅 Calendar Auto-Fetch (Select Date Range)", 
+    value=[] 
+)
 
 temp_dfs = []
 
-if uploaded_manual_file is not None:
-    try:
-        tdf = pd.read_excel(uploaded_manual_file, sheet_name=0, dtype=str)
-    except:
-        tdf = pd.read_csv(uploaded_manual_file, dtype=str)
-    
-    f_name = uploaded_manual_file.name.split('.')[0]
-    tdf['Date'] = f_name if len(f_name) >= 10 else datetime.now().strftime("%Y-%m-%d")
-    temp_dfs.append(tdf)
-
-elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
+if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
     start_d, end_d = selected_dates_range
     delta = end_d - start_d
     date_list = [start_d + timedelta(days=i) for i in range(delta.days + 1)]
