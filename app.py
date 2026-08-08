@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import base64
 import os
 import glob
 
@@ -30,127 +29,104 @@ st.markdown(
     #st-toolbar {display: none !important; visibility: hidden !important;}
     .stActionButton {display: none !important; visibility: hidden !important;}
     div[class^="viewerBadge"] {display: none !important;}
+    
+    /* CLEAN PROFESSIONAL SOLID BACKGROUND */
+    .stApp {
+        background-color: #f8fafc;
+    }
+    
+    /* MODERN CONTAINER */
+    .block-container {
+        background: #ffffff !important;
+        padding: 2.5rem !important;
+        border-radius: 20px !important;
+        margin-top: 2rem !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    
+    /* LIGHT PURPLE CRYSTAL HERO BANNER */
+    .hero-banner {
+        background: linear-gradient(135deg, #b87ad9 0%, #d4a5ec 50%, #f3e8ff 100%);
+        padding: 28px 35px;
+        border-radius: 18px;
+        color: #2e1065;
+        box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 10px 25px rgba(184, 122, 217, 0.3);
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+    .hero-title {
+        font-size: 28px !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
+        color: #3b0764 !important;
+        letter-spacing: 0.5px;
+    }
+    .hero-subtitle {
+        font-size: 14px;
+        color: #581c87;
+        margin-top: 5px;
+        margin-bottom: 0;
+        font-weight: 600;
+    }
+
+    /* CUSTOM DASHED CALENDAR STYLING */
+    div[data-testid="stDateInput"] {
+        border: 2px dashed #9333ea !important;
+        padding: 14px 18px !important;
+        border-radius: 14px !important;
+        background: rgba(248, 250, 252, 0.8) !important;
+    }
+    div[data-testid="stDateInput"] label p {
+        font-weight: 700 !important;
+        color: #581c87 !important;
+        font-size: 14px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    div[data-testid="stDateInput"] label p::after {
+        content: "📅";
+        font-size: 20px;
+    }
+
+    /* METRIC CARDS */
+    .metric-card {
+        padding: 22px;
+        border-radius: 14px 14px 0 0;
+        color: white;
+        font-family: sans-serif;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    }
+    .card-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+    .card-red { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
+    .card-orange { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }
+    .card-purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+    
+    .card-title { font-size: 14px; font-weight: 600; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-value { font-size: 32px; font-weight: 800; }
+
+    div[data-testid="stButton"] button {
+        border-radius: 0 0 14px 14px !important;
+        border-top: none !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stButton"] button:hover {
+        transform: translateY(-2px);
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-def get_base64_of_bin_file(bin_file):
-    try:
-        with open(bin_file, 'rb') as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    except:
-        return ""
-
-# Updated to match your bg.png file
-bin_str = get_base64_of_bin_file('bg.png')
-
-if bin_str:
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{bin_str}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
-        
-        /* MODERN GLASSMORPHISM CONTAINER */
-        .block-container {{
-            background: rgba(255, 255, 255, 0.92) !important;
-            backdrop-filter: blur(16px) !important;
-            padding: 2.5rem !important;
-            border-radius: 20px !important;
-            margin-top: 2rem !important;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
-            border: 1px solid rgba(255, 255, 255, 0.6) !important;
-        }}
-        
-        /* EXACT REFERENCE LIGHT PURPLE CRYSTAL HERO BANNER */
-        .hero-banner {{
-            background: linear-gradient(135deg, #b87ad9 0%, #d4a5ec 50%, #f3e8ff 100%);
-            padding: 28px 35px;
-            border-radius: 18px;
-            color: #2e1065;
-            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 10px 25px rgba(184, 122, 217, 0.3);
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.8);
-        }}
-        .hero-title {{
-            font-size: 28px !important;
-            font-weight: 800 !important;
-            margin: 0 !important;
-            color: #3b0764 !important;
-            letter-spacing: 0.5px;
-        }}
-        .hero-subtitle {{
-            font-size: 14px;
-            color: #581c87;
-            margin-top: 5px;
-            margin-bottom: 0;
-            font-weight: 600;
-        }}
-
-        /* CUSTOM CALENDAR STYLING */
-        div[data-testid="stDateInput"] {{
-            border: 2px dashed #9333ea !important;
-            padding: 14px 18px !important;
-            border-radius: 14px !important;
-            background: rgba(248, 250, 252, 0.8) !important;
-        }}
-        div[data-testid="stDateInput"] label p {{
-            font-weight: 700 !important;
-            color: #581c87 !important;
-            font-size: 14px !important;
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            width: 100% !important;
-        }}
-        div[data-testid="stDateInput"] label p::after {{
-            content: "📅";
-            font-size: 20px;
-        }}
-
-        /* METRIC CARDS */
-        .metric-card {{
-            padding: 22px;
-            border-radius: 14px 14px 0 0;
-            color: white;
-            font-family: sans-serif;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-        }}
-        .card-blue {{ background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }}
-        .card-red {{ background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }}
-        .card-orange {{ background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }}
-        .card-purple {{ background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }}
-        
-        .card-title {{ font-size: 14px; font-weight: 600; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }}
-        .card-value {{ font-size: 32px; font-weight: 800; }}
-
-        div[data-testid="stButton"] button {{
-            border-radius: 0 0 14px 14px !important;
-            border-top: none !important;
-            font-weight: 600 !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            transition: all 0.3s ease;
-        }}
-        div[data-testid="stButton"] button:hover {{
-            transform: translateY(-2px);
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
 # ==========================================
-# REFERENCE LIGHT PURPLE CRYSTAL HERO BANNER
+# LIGHT PURPLE CRYSTAL HERO BANNER
 # ==========================================
 st.markdown("""
     <div class="hero-banner">
@@ -298,7 +274,7 @@ def rebuild_all_history():
 rebuild_all_history()
 
 # ==========================================
-# UI: CALENDAR RANGE AUTO-FETCH (NO MANUAL UPLOAD)
+# UI: CALENDAR RANGE AUTO-FETCH
 # ==========================================
 selected_dates_range = st.date_input(
     "📅 Calendar Auto-Fetch (Select Date Range)", 
