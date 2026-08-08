@@ -68,18 +68,18 @@ if bin_str:
             border: 1px solid rgba(255, 255, 255, 0.6) !important;
         }}
         
-        /* REDESIGNED WELCOME HERO BANNER */
+        /* SHADED CRYSTAL PURPLE HERO BANNER */
         .hero-banner {{
-            background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
-            padding: 30px;
-            border-radius: 16px;
+            background: linear-gradient(135deg, #3b1443 0%, #512b58 50%, #2a0833 100%);
+            padding: 28px 35px;
+            border-radius: 18px;
             color: white;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 10px 25px rgba(59, 20, 67, 0.4);
             margin-bottom: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-left: 6px solid #6366f1;
+            border: 1px solid rgba(168, 85, 247, 0.3);
         }}
         .hero-title {{
             font-size: 28px !important;
@@ -87,24 +87,26 @@ if bin_str:
             margin: 0 !important;
             color: #ffffff !important;
             letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }}
         .hero-subtitle {{
             font-size: 14px;
-            color: #a5b4fc;
+            color: #e9d5ff;
             margin-top: 5px;
             margin-bottom: 0;
+            font-weight: 400;
         }}
 
         /* CUSTOM CALENDAR STYLING */
         div[data-testid="stDateInput"] {{
-            border: 2px dashed #6366f1 !important;
+            border: 2px dashed #9333ea !important;
             padding: 14px 18px !important;
             border-radius: 14px !important;
             background: rgba(248, 250, 252, 0.8) !important;
         }}
         div[data-testid="stDateInput"] label p {{
             font-weight: 700 !important;
-            color: #312e81 !important;
+            color: #581c87 !important;
             font-size: 14px !important;
             display: flex !important;
             justify-content: space-between !important;
@@ -148,7 +150,7 @@ if bin_str:
     )
 
 # ==========================================
-# MODERN HERO WELCOME BANNER
+# SHADED CRYSTAL PURPLE HERO BANNER
 # ==========================================
 st.markdown("""
     <div class="hero-banner">
@@ -156,7 +158,7 @@ st.markdown("""
             <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
             <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
         </div>
-        <div style="text-align: right; font-size: 13px; color: #94a3b8;">
+        <div style="text-align: right; font-size: 13px; color: #d8b4fe;">
             <span>🟢 System Online</span><br>
             <span>Live Sync Active</span>
         </div>
