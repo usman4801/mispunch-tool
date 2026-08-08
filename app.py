@@ -31,6 +31,12 @@ st.markdown(
     .stActionButton {display: none !important; visibility: hidden !important;}
     div[class^="viewerBadge"] {display: none !important;}
     
+    /* STREAMLIT CLOUD BADGE & MANAGE APP BUTTON HIDE */
+    #manage-app-button {display: none !important; visibility: hidden !important;}
+    div[data-testid="manage-app-button"] {display: none !important; visibility: hidden !important;}
+    [data-testid="stConnectionStatus"] {display: none !important; visibility: hidden !important;}
+    .st-emotion-cache-12w0ip6 {display: none !important; visibility: hidden !important;}
+    
     /* CLEAN PROFESSIONAL SOLID BACKGROUND */
     .stApp {
         background-color: #f8fafc;
