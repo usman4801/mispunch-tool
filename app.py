@@ -88,7 +88,7 @@ st.markdown(
         font-size: 16px;
     }
 
-    /* FEATURE CARDS WITH EXACT MATCHING REFERENCE COLORS */
+    /* FEATURE CARDS WITH ORIGINAL RICH DARK COLORS */
     .feature-card {
         padding: 16px;
         border-radius: 18px;
@@ -98,13 +98,13 @@ st.markdown(
         justify-content: center;
         align-items: center;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
         border: 1.5px solid;
     }
-    .fc-blue { background: #f0f6ff; border-color: #d2e3fc; }
-    .fc-orange { background: #fefce8; border-color: #fef08a; }
-    .fc-green { background: #f0fdf4; border-color: #bbf7d0; }
-    .fc-purple { background: #faf5ff; border-color: #f3e8ff; }
+    .fc-blue { background: #eef2ff; border-color: #c7d2fe; }
+    .fc-orange { background: #fef3c7; border-color: #fde68a; }
+    .fc-green { background: #ecfdf5; border-color: #a7f3d0; }
+    .fc-purple { background: #fdf4ff; border-color: #f5d0fe; }
     
     .fc-title { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-top: 6px; margin-bottom: 3px; }
     .fc-text { font-size: 10.5px; color: #475569; line-height: 1.3; font-weight: 500; }
@@ -152,7 +152,7 @@ f_col1, f_col2 = st.columns([4, 8])
 with f_col1:
     selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
 with f_col2:
-    selected_dates_range = st.date_input("📅 Calendar Auto-Fetch (Select Date Range to Load Results)", value=[])
+    selected_dates_range = st.date_input("Select Date Range • Auto-Fetch (No File Required)", value=[])
 
 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
