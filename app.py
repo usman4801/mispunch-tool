@@ -36,56 +36,60 @@ st.markdown(
         background-color: #f8fafc;
     }
     
-    /* MODERN CONTAINER */
+    /* SINGLE-PAGE COMPACT CONTAINER TO PREVENT EXTRA SCROLLING */
     .block-container {
         background: #ffffff !important;
-        padding: 2.5rem !important;
-        border-radius: 20px !important;
-        margin-top: 1.5rem !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+        padding: 1.5rem 2rem !important;
+        border-radius: 16px !important;
+        margin-top: 0.5rem !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06) !important;
         border: 1px solid #e2e8f0 !important;
+        max-width: 100% !important;
     }
     
-    /* EXACT 1-TO-1 WELCOME HERO BANNER */
+    /* EXACT 1-TO-1 WELCOME HERO BANNER WITH LAPTOP IMAGE */
     .welcome-hero {
         background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #fae8ff 100%);
-        padding: 35px 40px;
-        border-radius: 20px;
+        padding: 25px 35px;
+        border-radius: 18px;
         color: #1e1b4b;
-        box-shadow: 0 10px 30px rgba(168, 85, 247, 0.15);
-        margin-bottom: 25px;
+        box-shadow: 0 8px 25px rgba(168, 85, 247, 0.12);
+        margin-bottom: 18px;
         border: 1px solid rgba(216, 180, 254, 0.6);
         position: relative;
         overflow: hidden;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     .welcome-badge {
         background: #fef08a;
         color: #713f12;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
         display: inline-block;
-        margin-bottom: 10px;
+        margin-bottom: 6px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .hero-title {
-        font-size: 30px !important;
+        font-size: 26px !important;
         font-weight: 800 !important;
         margin: 0 !important;
         color: #3b0764 !important;
         letter-spacing: 0.3px;
     }
     .hero-subtitle {
-        font-size: 15px;
+        font-size: 13px;
         color: #581c87;
-        margin-top: 4px;
+        margin-top: 2px;
         font-weight: 700;
     }
     .hero-desc {
-        font-size: 13px;
+        font-size: 12px;
         color: #6b21a8;
-        margin-top: 2px;
+        margin-top: 1px;
         font-weight: 500;
     }
 
@@ -98,18 +102,18 @@ st.markdown(
     div[data-testid="stSelectbox"] label p {
         font-weight: 800 !important;
         color: #000000 !important;
-        font-size: 13px !important;
+        font-size: 12px !important;
     }
     div[data-testid="stDateInput"] {
         border: 2px dashed #c084fc !important;
-        padding: 8px 14px !important;
+        padding: 6px 12px !important;
         border-radius: 12px !important;
         background: #faf5ff !important;
     }
     div[data-testid="stDateInput"] label p {
         font-weight: 800 !important;
         color: #000000 !important;
-        font-size: 13px !important;
+        font-size: 12px !important;
         display: flex !important;
         justify-content: space-between !important;
         align-items: center !important;
@@ -117,7 +121,7 @@ st.markdown(
     }
     div[data-testid="stDateInput"] label p::after {
         content: "📅";
-        font-size: 18px;
+        font-size: 16px;
     }
 
     /* PURPLE VIEW DASHBOARD BUTTON */
@@ -126,7 +130,7 @@ st.markdown(
         color: white !important;
         border-radius: 12px !important;
         font-weight: 700 !important;
-        padding: 0.75rem 1.5rem !important;
+        padding: 0.6rem 1.2rem !important;
         border: none !important;
         box-shadow: 0 4px 15px rgba(109, 40, 217, 0.3) !important;
         transition: all 0.3s ease;
@@ -136,17 +140,17 @@ st.markdown(
         box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4) !important;
     }
 
-    /* FEATURE CARDS (BOTTOM 4 CARDS) */
+    /* FEATURE CARDS (BOTTOM 4 CARDS - COMPACT FOR SINGLE PAGE) */
     .feature-card {
-        padding: 20px;
-        border-radius: 16px;
-        height: 140px;
+        padding: 14px;
+        border-radius: 14px;
+        height: 110px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.03);
         border: 1px solid rgba(0,0,0,0.04);
     }
     .fc-blue { background: #eff6ff; border-color: #dbeafe; }
@@ -154,8 +158,8 @@ st.markdown(
     .fc-green { background: #f0fdf4; border-color: #dcfce7; }
     .fc-purple { background: #faf5ff; border-color: #f3e8ff; }
     
-    .fc-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 8px; margin-bottom: 4px; }
-    .fc-text { font-size: 11px; color: #64748b; line-height: 1.3; }
+    .fc-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 4px; margin-bottom: 2px; }
+    .fc-text { font-size: 10px; color: #64748b; line-height: 1.2; }
 
     /* METRIC CARDS INSIDE DASHBOARD */
     .metric-card {
@@ -192,22 +196,25 @@ if "page_mode" not in st.session_state:
     st.session_state.page_mode = "welcome"
 
 # ==========================================
-# WELCOME SCREEN (1-TO-1 MATCH)
+# WELCOME SCREEN (1-TO-1 SINGLE PAGE MATCH)
 # ==========================================
 if st.session_state.page_mode == "welcome":
     
-    # Hero Banner
+    # Hero Banner with Laptop Image on Right Side
     if banner_str:
         st.markdown(f"""
-            <div class="welcome-hero" style="background-image: linear-gradient(90deg, rgba(243,232,255,0.95) 50%, rgba(243,232,255,0.4) 100%), url('data:image/png;base64,{banner_str}'); background-size: cover; background-position: right;">
+            <div class="welcome-hero">
                 <div>
                     <span class="welcome-badge">⭐ Welcome to</span>
                     <h1 class="hero-title">Workforce Compliance Monitor</h1>
                     <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
                     <p class="hero-desc">Smarter Insights. Stronger Compliance. Better Workforce.</p>
                 </div>
-                <div style="position: absolute; top: 20px; right: 25px; background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 12px; font-size: 12px; font-weight: 600; color: #166534; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-                    🟢 System Online<br><span style="color: #4b5563; font-size: 11px;">Live Sync Active</span>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <img src="data:image/png;base64,{banner_str}" style="max-height: 110px; border-radius: 10px; object-fit: contain;">
+                    <div style="background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #166534; box-shadow: 0 3px 8px rgba(0,0,0,0.05); text-align: right;">
+                        🟢 System Online<br><span style="color: #4b5563; font-size: 10px;">Live Sync Active</span>
+                    </div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -220,13 +227,13 @@ if st.session_state.page_mode == "welcome":
                     <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
                     <p class="hero-desc">Smarter Insights. Stronger Compliance. Better Workforce.</p>
                 </div>
-                <div style="position: absolute; top: 20px; right: 25px; background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 12px; font-size: 12px; font-weight: 600; color: #166534; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-                    🟢 System Online<br><span style="color: #4b5563; font-size: 11px;">Live Sync Active</span>
+                <div style="background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #166534; box-shadow: 0 3px 8px rgba(0,0,0,0.05); text-align: right;">
+                    🟢 System Online<br><span style="color: #4b5563; font-size: 10px;">Live Sync Active</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-    # Filter Section (Aligned in 1 row just like your image)
+    # Filter Section (Aligned in 1 row)
     f_col1, f_col2, f_col3 = st.columns([3, 4, 4])
     with f_col1:
         selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
@@ -235,30 +242,30 @@ if st.session_state.page_mode == "welcome":
     with f_col3:
         selected_dates_range = st.date_input("📅 Calendar Auto-Fetch (Select Date Range)", value=[])
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
     # Center View Dashboard Button
-    _, btn_col, _ = st.columns([3, 4, 3])
+    _, btn_col, _ = st.columns([3, 3, 3])
     with btn_col:
         if st.button("🔍 View Dashboard ➔", use_container_width=True):
             st.session_state.page_mode = "dashboard"
             st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
-    # Bottom 4 Feature Cards
+    # Bottom 4 Feature Cards (Compact single-row fit)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown('<div class="feature-card fc-blue"><div style="font-size:24px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-blue"><div style="font-size:20px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="feature-card fc-orange"><div style="font-size:24px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-orange"><div style="font-size:20px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
     with c3:
-        st.markdown('<div class="feature-card fc-green"><div style="font-size:24px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-green"><div style="font-size:20px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
     with c4:
-        st.markdown('<div class="feature-card fc-purple"><div style="font-size:24px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feature-card fc-purple"><div style="font-size:20px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
 
-    st.markdown("<br><hr style='border: none; border-top: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #64748b; font-size: 12px; font-weight: 600;'>Built for a smarter, stronger and compliant workplace</p>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 12px 0 8px 0;'>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #64748b; font-size: 11px; font-weight: 600; margin: 0;'>Built for a smarter, stronger and compliant workplace</p>", unsafe_allow_html=True)
 
 
 # ==========================================
