@@ -6,7 +6,7 @@ import os
 import glob
 
 st.set_page_config(
-    page_title="Attendance Mispunch & Repeated Defaulter Intelligence", 
+    page_title="Workforce Compliance Monitor", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
