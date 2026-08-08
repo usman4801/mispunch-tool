@@ -57,84 +57,86 @@ if bin_str:
             background-attachment: fixed;
         }}
         
-        /* UNIQUE GLASSMORPHISM CONTAINER LOOK */
+        /* MODERN GLASSMORPHISM CONTAINER */
         .block-container {{
-            background: rgba(255, 255, 255, 0.88) !important;
-            backdrop-filter: blur(12px) !important;
-            padding: 2.5rem 2rem !important;
-            border-radius: 16px !important;
-            margin-top: 1.5rem !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
-            border: 1px solid rgba(255, 255, 255, 0.5) !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            backdrop-filter: blur(16px) !important;
+            padding: 2.5rem !important;
+            border-radius: 20px !important;
+            margin-top: 2rem !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
         }}
         
-        /* STYLISH HEADER BANNER */
-        .dashboard-header {{
-            background: linear-gradient(135deg, #6a1b9a 0%, #4a148c 100%);
-            padding: 20px 25px;
-            border-radius: 12px;
+        /* REDESIGNED WELCOME HERO BANNER */
+        .hero-banner {{
+            background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+            padding: 30px;
+            border-radius: 16px;
             color: white;
-            box-shadow: 0 6px 20px rgba(106, 27, 154, 0.25);
-            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 15px;
+            border-left: 6px solid #6366f1;
         }}
-        .dashboard-header h1 {{
-            color: white !important;
-            font-size: 26px !important;
+        .hero-title {{
+            font-size: 28px !important;
             font-weight: 800 !important;
             margin: 0 !important;
+            color: #ffffff !important;
             letter-spacing: 0.5px;
         }}
-
-        /* CALENDAR BOX STYLING WITH EMOJI ON RIGHT */
-        div[data-testid="stDateInput"] {{
-            border: 2px dashed #6a1b9a !important;
-            padding: 12px 18px !important;
-            border-radius: 12px !important;
-            background: rgba(255, 255, 255, 0.7) !important;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+        .hero-subtitle {{
+            font-size: 14px;
+            color: #a5b4fc;
+            margin-top: 5px;
+            margin-bottom: 0;
         }}
-        div[data-testid="stDateInput"] label {{
-            width: 100% !important;
+
+        /* CUSTOM CALENDAR STYLING */
+        div[data-testid="stDateInput"] {{
+            border: 2px dashed #6366f1 !important;
+            padding: 14px 18px !important;
+            border-radius: 14px !important;
+            background: rgba(248, 250, 252, 0.8) !important;
         }}
         div[data-testid="stDateInput"] label p {{
             font-weight: 700 !important;
-            color: #4a148c !important;
-            font-size: 15px !important;
+            color: #312e81 !important;
+            font-size: 14px !important;
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
             width: 100% !important;
         }}
         div[data-testid="stDateInput"] label p::after {{
-            content: "🗓️";
-            font-size: 22px;
-            margin-right: 5px;
+            content: "📅";
+            font-size: 20px;
         }}
 
+        /* METRIC CARDS */
         .metric-card {{
-            padding: 20px;
-            border-radius: 12px 12px 0 0;
+            padding: 22px;
+            border-radius: 14px 14px 0 0;
             color: white;
             font-family: sans-serif;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
         }}
-        .card-blue {{ background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }}
-        .card-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
-        .card-orange {{ background: linear-gradient(135deg, #f12711 0%, #f5af19 100%); }}
-        .card-purple {{ background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }}
-        .card-red {{ background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }}
+        .card-blue {{ background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }}
+        .card-red {{ background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }}
+        .card-orange {{ background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }}
+        .card-purple {{ background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }}
         
-        .card-title {{ font-size: 15px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
-        .card-value {{ font-size: 34px; font-weight: 800; }}
+        .card-title {{ font-size: 14px; font-weight: 600; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .card-value {{ font-size: 32px; font-weight: 800; }}
 
         div[data-testid="stButton"] button {{
-            border-radius: 0 0 12px 12px !important;
+            border-radius: 0 0 14px 14px !important;
             border-top: none !important;
             font-weight: 600 !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             transition: all 0.3s ease;
         }}
         div[data-testid="stButton"] button:hover {{
@@ -146,12 +148,18 @@ if bin_str:
     )
 
 # ==========================================
-# UNIQUE HEADER WITH LOGO & NEW NAME
+# MODERN HERO WELCOME BANNER
 # ==========================================
 st.markdown("""
-    <div class="dashboard-header">
-        <span style="font-size: 32px;">🛡️</span>
-        <h1>Workforce Compliance Monitor</h1>
+    <div class="hero-banner">
+        <div>
+            <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
+            <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
+        </div>
+        <div style="text-align: right; font-size: 13px; color: #94a3b8;">
+            <span>🟢 System Online</span><br>
+            <span>Live Sync Active</span>
+        </div>
     </div>
 """, unsafe_allow_html=True)
 
