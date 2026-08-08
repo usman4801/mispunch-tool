@@ -74,7 +74,7 @@ st.markdown(
         font-weight: 600;
     }
 
-    /* REMOVE BORDERS & MAKE LABELS BLACK FOR SELECTBOXES */
+    /* REMOVE BORDERS FOR SELECTBOXES & MAKE LABELS BLACK */
     div[data-testid="stSelectbox"] {
         border: none !important;
         padding: 0px !important;
@@ -87,12 +87,12 @@ st.markdown(
         font-size: 14px !important;
     }
 
-    /* REMOVE BORDERS & MAKE LABELS BLACK FOR CALENDAR */
+    /* CALENDAR BOX WITH BORDER LINE & BLACK LABEL */
     div[data-testid="stDateInput"] {
-        border: none !important;
-        padding: 0px !important;
-        background: transparent !important;
-        box-shadow: none !important;
+        border: 2px dashed #9333ea !important;
+        padding: 12px 18px !important;
+        border-radius: 14px !important;
+        background: rgba(248, 250, 252, 0.8) !important;
     }
     div[data-testid="stDateInput"] label p {
         font-weight: 800 !important;
@@ -155,16 +155,16 @@ logo_str = get_base64_of_bin_file('logo.png')
 if logo_str:
     st.markdown(f"""
         <div class="hero-banner">
-            <div>
-                <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
-                <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
-            </div>
             <div style="display: flex; align-items: center; gap: 20px;">
-                <img src="data:image/png;base64,{logo_str}" style="height: 75px; border-radius: 12px; object-fit: contain;">
-                <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
-                    <span>🟢 System Online</span><br>
-                    <span>Live Sync Active</span>
+                <img src="data:image/png;base64,{logo_str}" style="height: 65px; border-radius: 12px; object-fit: contain;">
+                <div>
+                    <h1 class="hero-title">Workforce Compliance Monitor</h1>
+                    <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
                 </div>
+            </div>
+            <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
+                <span>🟢 System Online</span><br>
+                <span>Live Sync Active</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -318,7 +318,7 @@ rebuild_all_history()
 # UI: CALENDAR RANGE AUTO-FETCH
 # ==========================================
 selected_dates_range = st.date_input(
-    "📅 Calendar Auto-Fetch (Select Date Range)", 
+    "Calendar Auto-Fetch (Select Date Range)", 
     value=[] 
 )
 
