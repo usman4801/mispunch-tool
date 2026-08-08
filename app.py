@@ -56,27 +56,49 @@ if bin_str:
             background-repeat: no-repeat;
             background-attachment: fixed;
         }}
+        
+        /* UNIQUE GLASSMORPHISM CONTAINER LOOK */
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.94);
-            padding: 2rem;
-            border-radius: 12px;
-            margin-top: 1.5rem;
-            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.88) !important;
+            backdrop-filter: blur(12px) !important;
+            padding: 2.5rem 2rem !important;
+            border-radius: 16px !important;
+            margin-top: 1.5rem !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.5) !important;
         }}
         
+        /* STYLISH HEADER BANNER */
+        .dashboard-header {{
+            background: linear-gradient(135deg, #6a1b9a 0%, #4a148c 100%);
+            padding: 20px 25px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 6px 20px rgba(106, 27, 154, 0.25);
+            margin-bottom: 25px;
+        }}
+        .dashboard-header h1 {{
+            color: white !important;
+            font-size: 26px !important;
+            font-weight: 800 !important;
+            margin: 0 !important;
+            letter-spacing: 0.5px;
+        }}
+
         /* CALENDAR BOX STYLING WITH EMOJI ON RIGHT */
         div[data-testid="stDateInput"] {{
-            border: 2px dashed #3b82f6 !important;
-            padding: 18px !important;
+            border: 2px dashed #6a1b9a !important;
+            padding: 12px 18px !important;
             border-radius: 12px !important;
-            background: rgba(240, 248, 255, 0.5);
+            background: rgba(255, 255, 255, 0.7) !important;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
         }}
         div[data-testid="stDateInput"] label {{
             width: 100% !important;
         }}
         div[data-testid="stDateInput"] label p {{
             font-weight: 700 !important;
-            color: #1e3a8a !important;
+            color: #4a148c !important;
             font-size: 15px !important;
             display: flex !important;
             justify-content: space-between !important;
@@ -86,16 +108,16 @@ if bin_str:
         /* Right side emoji using CSS */
         div[data-testid="stDateInput"] label p::after {{
             content: "🗓️";
-            font-size: 24px;
+            font-size: 22px;
             margin-right: 5px;
         }}
 
         .metric-card {{
-            padding: 22px;
+            padding: 20px;
             border-radius: 12px 12px 0 0;
             color: white;
             font-family: sans-serif;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
         }}
         .card-blue {{ background: linear-gradient(135deg, #0061ff 0%, #60efff 100%); }}
         .card-green {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }}
@@ -103,14 +125,14 @@ if bin_str:
         .card-purple {{ background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%); }}
         .card-red {{ background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }}
         
-        .card-title {{ font-size: 16px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
-        .card-value {{ font-size: 36px; font-weight: 800; }}
+        .card-title {{ font-size: 15px; font-weight: 600; opacity: 0.95; margin-bottom: 5px; }}
+        .card-value {{ font-size: 34px; font-weight: 800; }}
 
         div[data-testid="stButton"] button {{
             border-radius: 0 0 12px 12px !important;
             border-top: none !important;
             font-weight: 600 !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
             transition: all 0.3s ease;
         }}
         div[data-testid="stButton"] button:hover {{
@@ -122,10 +144,13 @@ if bin_str:
     )
 
 # ==========================================
-# PURPLE HEADING 
+# UNIQUE PURPLE GRADIENT HEADING BANNER
 # ==========================================
-st.markdown("<h1 style='color: #6a1b9a; font-weight: 800;'>📊 Attendance Mispunch & Repeated Defaulter Intelligence</h1>", unsafe_allow_html=True)
-st.markdown("---")
+st.markdown("""
+    <div class="dashboard-header">
+        <h1>📊 Attendance Mispunch & Repeated Defaulter Intelligence</h1>
+    </div>
+""", unsafe_allow_html=True)
 
 def clean_id(val):
     try:
@@ -302,7 +327,7 @@ elif isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
         for f_path, d_str in valid_files:
             try:
                 tdf = pd.read_excel(f_path, sheet_name=0, dtype=str)
-                tdf['Date'] = d_str  
+                tdf['Date'] = d_str 
                 temp_dfs.append(tdf)
             except:
                 try:
@@ -471,4 +496,4 @@ if not att_df.empty:
     with down_col2:
         if os.path.exists(HISTORY_FILE):
             hist_csv = pd.read_csv(HISTORY_FILE).to_csv(index=False).encode('utf-8')
-            st.download_button("📂 Download Master Offenders History (Backup)", hist_csv, f"Master_Offenders_History.csv", "text/csv", use_container_width=True)
+            st.download_button("📂 Download Master Offenders History (Backup)", hist_csv, f"Master_Offenders_History.csv", "text/csv", type="primary", use_container_width=True)
