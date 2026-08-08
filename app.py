@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import base64
 import os
 import glob
 
@@ -73,6 +74,19 @@ st.markdown(
         font-weight: 600;
     }
 
+    /* CUSTOM STYLING FOR SELECTBOXES (SITE & SHIFT) */
+    div[data-testid="stSelectbox"] {
+        border: 2px dashed #9333ea !important;
+        padding: 10px 15px !important;
+        border-radius: 14px !important;
+        background: rgba(248, 250, 252, 0.8) !important;
+    }
+    div[data-testid="stSelectbox"] label p {
+        font-weight: 800 !important;
+        color: #581c87 !important;
+        font-size: 14px !important;
+    }
+
     /* CUSTOM DASHED CALENDAR STYLING */
     div[data-testid="stDateInput"] {
         border: 2px dashed #9333ea !important;
@@ -81,7 +95,7 @@ st.markdown(
         background: rgba(248, 250, 252, 0.8) !important;
     }
     div[data-testid="stDateInput"] label p {
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         color: #581c87 !important;
         font-size: 14px !important;
         display: flex !important;
@@ -125,21 +139,48 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+def get_base64_of_bin_file(bin_file):
+    try:
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except:
+        return ""
+
+logo_str = get_base64_of_bin_file('logo.png')
+
 # ==========================================
-# LIGHT PURPLE CRYSTAL HERO BANNER
+# LIGHT PURPLE CRYSTAL HERO BANNER WITH LOGO
 # ==========================================
-st.markdown("""
-    <div class="hero-banner">
-        <div>
-            <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
-            <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
+if logo_str:
+    st.markdown(f"""
+        <div class="hero-banner">
+            <div>
+                <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
+                <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <img src="data:image/png;base64,{logo_str}" style="height: 65px; border-radius: 10px;">
+                <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
+                    <span>🟢 System Online</span><br>
+                    <span>Live Sync Active</span>
+                </div>
+            </div>
         </div>
-        <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
-            <span>🟢 System Online</span><br>
-            <span>Live Sync Active</span>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <div class="hero-banner">
+            <div>
+                <h1 class="hero-title">🛡️ Workforce Compliance Monitor</h1>
+                <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
+            </div>
+            <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
+                <span>🟢 System Online</span><br>
+                <span>Live Sync Active</span>
+            </div>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 def clean_id(val):
     try:
@@ -167,10 +208,10 @@ exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_id
 
 col1, col2 = st.columns([3, 7])
 with col1:
-    selected_warehouse = st.selectbox("Site", options=["AUH1", "DXB5", "DXB3"])
+    selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
 with col2:
     upload_mode = st.selectbox(
-        "Shift / Mode", 
+        "🕒 Shift / Mode", 
         options=["Full Day / 24 Hours Data", "Day Shift Only", "Night Shift Only", "Mid Shift Only"]
     )
 
