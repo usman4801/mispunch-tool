@@ -89,17 +89,7 @@ st.markdown(
         font-weight: 500;
     }
 
-    /* FILTER BAR CONTAINER */
-    .filter-card {
-        background: #ffffff;
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-        border: 1px solid #f3e8ff;
-        margin-bottom: 25px;
-    }
-
-    /* SELECTBOXES & CALENDAR STYLING */
+    /* FILTERS CONTAINER STYLING */
     div[data-testid="stSelectbox"] {
         border: none !important;
         padding: 0px !important;
@@ -128,6 +118,22 @@ st.markdown(
     div[data-testid="stDateInput"] label p::after {
         content: "📅";
         font-size: 18px;
+    }
+
+    /* PURPLE VIEW DASHBOARD BUTTON */
+    div.stButton > button {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%) !important;
+        color: white !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        padding: 0.75rem 1.5rem !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(109, 40, 217, 0.3) !important;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4) !important;
     }
 
     /* FEATURE CARDS (BOTTOM 4 CARDS) */
@@ -166,17 +172,6 @@ st.markdown(
     
     .card-title { font-size: 14px; font-weight: 600; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
     .card-value { font-size: 32px; font-weight: 800; }
-
-    div[data-testid="stButton"] button {
-        border-radius: 0 0 14px 14px !important;
-        border-top: none !important;
-        font-weight: 600 !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-    }
-    div[data-testid="stButton"] button:hover {
-        transform: translateY(-2px);
-    }
     </style>
     """,
     unsafe_allow_html=True
@@ -197,7 +192,7 @@ if "page_mode" not in st.session_state:
     st.session_state.page_mode = "welcome"
 
 # ==========================================
-# WELCOME SCREEN (1-TO-1 MATCH WITH IMAGE)
+# WELCOME SCREEN (1-TO-1 MATCH)
 # ==========================================
 if st.session_state.page_mode == "welcome":
     
@@ -231,8 +226,7 @@ if st.session_state.page_mode == "welcome":
             </div>
         """, unsafe_allow_html=True)
 
-    # Filter Section Box
-    st.markdown('<div class="filter-card">', unsafe_allow_html=True)
+    # Filter Section (Aligned in 1 row just like your image)
     f_col1, f_col2, f_col3 = st.columns([3, 4, 4])
     with f_col1:
         selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
@@ -240,12 +234,13 @@ if st.session_state.page_mode == "welcome":
         upload_mode = st.selectbox("🕒 Shift / Mode", options=["Full Day / 24 Hours Data", "Day Shift Only", "Night Shift Only", "Mid Shift Only"])
     with f_col3:
         selected_dates_range = st.date_input("📅 Calendar Auto-Fetch (Select Date Range)", value=[])
-    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Center View Dashboard Button
-    _, btn_col, _ = st.columns([2, 3, 2])
+    _, btn_col, _ = st.columns([3, 4, 3])
     with btn_col:
-        if st.button("🔍 View Dashboard ➔", type="primary", use_container_width=True):
+        if st.button("🔍 View Dashboard ➔", use_container_width=True):
             st.session_state.page_mode = "dashboard"
             st.rerun()
 
@@ -387,7 +382,6 @@ else:
 
     rebuild_all_history()
 
-    # Load all available files in repository for analysis
     all_repo_files = glob.glob("2026-08-*.xlsx.xlsx") + glob.glob("2026-08-*.csv") + glob.glob("2026-08-*.xls")
     temp_dfs = []
     for fpath in all_repo_files:
