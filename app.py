@@ -43,14 +43,15 @@ def get_base64_of_bin_file(bin_file):
     except:
         return ""
 
-bin_str = get_base64_of_bin_file('bg.jpeg.jpeg')
+# Updated to match your bg.png file
+bin_str = get_base64_of_bin_file('bg.png')
 
 if bin_str:
     st.markdown(
         f"""
         <style>
         .stApp {{
-            background-image: url("data:image/jpeg;base64,{bin_str}");
+            background-image: url("data:image/png;base64,{bin_str}");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
