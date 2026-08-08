@@ -305,31 +305,21 @@ if not att_df.empty:
         'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
     })
     
-    # Calculate offenses ONLY within the selected date range files
-    current_range_records = []
-    for _, row in base_info.iterrows():
-        it = analysis_df.loc[row.name, 'Issue Type']
-        if it != "Clean":
-            current_range_records.append({'P.Soft ID': row['P.Soft ID'], 'Issue Type': it})
-            
-    if current_range_records:
-        curr_off_df = pd.DataFrame(current_range_records)
-        # Count how many times each ID appears in this selected range
-        offense_counts = curr_off_df.groupby(['P.Soft ID', 'Issue Type']).size().reset_index(name='Range Offense Count')
-    else:
-        offense_counts = pd.DataFrame(columns=['P.Soft ID', 'Issue Type', 'Range Offense Count'])
-
-    base_info = base_info.merge(offense_counts, on=['P.Soft ID'], how='left')
-    base_info['Range Offense Count'] = base_info['Range Offense Count'].fillna(1).astype(int)
-    
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
-    mispunches = final_df[final_df['Issue Type'] == "Mispunch"]
-    defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"]
+    # Calculate offenses within the selected date range files
+    mispunches = final_df[final_df['Issue Type'] == "Mispunch"].copy()
+    defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     
-    # Repeated within selected range means appeared more than once in this specific range
-    repeated_mispunches = final_df[(final_df['Range Offense Count'] > 1) & (final_df['Issue Type'] == "Mispunch")]
-    repeated_defaulters = final_df[(final_df['Range Offense Count'] > 1) & (final_df['Issue Type'] == "Defaulter Hours")]
+    # Count occurrences per P.Soft ID within the selected range to find repeated ones
+    mis_counts = mispunches['P.Soft ID'].value_counts()
+    def_counts = defaulters['P.Soft ID'].value_counts()
+    
+    repeated_mis_ids = mis_counts[mis_counts > 1].index
+    repeated_def_ids = def_counts[def_counts > 1].index
+    
+    repeated_mispunches = mispunches[mispunches['P.Soft ID'].isin(repeated_mis_ids)]
+    repeated_defaulters = defaulters[defaulters['P.Soft ID'].isin(repeated_def_ids)]
 
     if "selected_view" not in st.session_state: st.session_state.selected_view = "all"
 
@@ -359,7 +349,7 @@ if not att_df.empty:
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
-    st.dataframe(display_df.drop(columns=['Issue Type', 'Range Offense Count']), use_container_width=True, hide_index=True)
+    st.dataframe(display_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
 
 else:
     # Feature cards shown when no date range is selected yet
