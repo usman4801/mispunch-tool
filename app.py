@@ -76,6 +76,9 @@ if bin_str:
             color: white;
             box-shadow: 0 6px 20px rgba(106, 27, 154, 0.25);
             margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }}
         .dashboard-header h1 {{
             color: white !important;
@@ -105,7 +108,6 @@ if bin_str:
             align-items: center !important;
             width: 100% !important;
         }}
-        /* Right side emoji using CSS */
         div[data-testid="stDateInput"] label p::after {{
             content: "🗓️";
             font-size: 22px;
@@ -144,11 +146,12 @@ if bin_str:
     )
 
 # ==========================================
-# UNIQUE PURPLE GRADIENT HEADING BANNER
+# UNIQUE HEADER WITH LOGO & NEW NAME
 # ==========================================
 st.markdown("""
     <div class="dashboard-header">
-        <h1>📊 Attendance Mispunch & Repeated Defaulter Intelligence</h1>
+        <span style="font-size: 32px;">🛡️</span>
+        <h1>Workforce Compliance Monitor</h1>
     </div>
 """, unsafe_allow_html=True)
 
