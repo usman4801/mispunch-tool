@@ -74,29 +74,29 @@ st.markdown(
         font-weight: 600;
     }
 
-    /* CUSTOM STYLING FOR SELECTBOXES (SITE & SHIFT) */
+    /* REMOVE BORDERS & MAKE LABELS BLACK FOR SELECTBOXES */
     div[data-testid="stSelectbox"] {
-        border: 2px dashed #9333ea !important;
-        padding: 10px 15px !important;
-        border-radius: 14px !important;
-        background: rgba(248, 250, 252, 0.8) !important;
+        border: none !important;
+        padding: 0px !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
     div[data-testid="stSelectbox"] label p {
         font-weight: 800 !important;
-        color: #581c87 !important;
+        color: #000000 !important;
         font-size: 14px !important;
     }
 
-    /* CUSTOM DASHED CALENDAR STYLING */
+    /* REMOVE BORDERS & MAKE LABELS BLACK FOR CALENDAR */
     div[data-testid="stDateInput"] {
-        border: 2px dashed #9333ea !important;
-        padding: 14px 18px !important;
-        border-radius: 14px !important;
-        background: rgba(248, 250, 252, 0.8) !important;
+        border: none !important;
+        padding: 0px !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
     div[data-testid="stDateInput"] label p {
         font-weight: 800 !important;
-        color: #581c87 !important;
+        color: #000000 !important;
         font-size: 14px !important;
         display: flex !important;
         justify-content: space-between !important;
@@ -160,7 +160,7 @@ if logo_str:
                 <p class="hero-subtitle">Advanced Attendance Mispunch & Defaulter Intelligence System</p>
             </div>
             <div style="display: flex; align-items: center; gap: 20px;">
-                <img src="data:image/png;base64,{logo_str}" style="height: 65px; border-radius: 10px;">
+                <img src="data:image/png;base64,{logo_str}" style="height: 75px; border-radius: 12px; object-fit: contain;">
                 <div style="text-align: right; font-size: 13px; color: #4c1d95; font-weight: 600;">
                     <span>🟢 System Online</span><br>
                     <span>Live Sync Active</span>
