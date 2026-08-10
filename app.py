@@ -74,11 +74,13 @@ st.markdown(
         color: #000000 !important;
         font-size: 13px !important;
     }
+    
+    /* UPDATED: LIGHT ORANGE BORDER FOR DATE INPUT */
     div[data-testid="stDateInput"] {
-        border: 2px dashed #c084fc !important;
+        border: 2px dashed #ffb74d !important; /* Light Orange Border */
         padding: 6px 12px !important;
         border-radius: 12px !important;
-        background: #faf5ff !important;
+        background: #fffdf5 !important; /* Light warm background to match */
     }
     div[data-testid="stDateInput"] label p {
         font-weight: 800 !important;
