@@ -53,12 +53,11 @@ st.markdown(
         max-width: 100% !important;
     }
     
-    /* DIRECT HEADER IMAGE STYLING - UPDATED FOR FULL WIDTH */
+    /* DIRECT HEADER IMAGE STYLING - FIXED CROPPING */
     .direct-header-img {
         width: calc(100% + 4rem) !important; 
         max-width: calc(100% + 4rem) !important;
-        height: 330px !important; 
-        object-fit: cover !important; 
+        height: auto !important; 
         margin-left: -2rem !important; 
         margin-right: -2rem !important; 
         margin-top: -1.5rem !important; 
