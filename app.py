@@ -145,15 +145,18 @@ def get_base64_of_bin_file(bin_file):
     except:
         return ""
 
-header_img_str = get_base64_of_bin_file('header_banner.png')
+# ---- CHANGED .png TO .jpg HERE ----
+header_img_str = get_base64_of_bin_file('header_banner.jpg')
 
 # ==========================================
 # WELCOME / DASHBOARD SCREEN
 # ==========================================
 if header_img_str:
-    st.markdown(f'<img src="data:image/png;base64,{header_img_str}" class="direct-header-img">', unsafe_allow_html=True)
+    # ---- CHANGED data:image/png TO data:image/jpeg HERE ----
+    st.markdown(f'<img src="data:image/jpeg;base64,{header_img_str}" class="direct-header-img">', unsafe_allow_html=True)
 else:
-    st.warning("⚠️ Please upload 'header_banner.png' to GitHub repository.")
+    # ---- CHANGED WARNING TEXT HERE ----
+    st.warning("⚠️ Please upload 'header_banner.jpg' to GitHub repository.")
 
 # Filter Section: Site on left, Calendar taking the remaining space
 f_col1, f_col2 = st.columns([4, 8])
