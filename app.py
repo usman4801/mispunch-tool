@@ -96,6 +96,14 @@ st.markdown(
         font-size: 16px;
     }
 
+    /* BRANCH LOGO STYLING */
+    .branch-logo {
+        max-height: 45px;
+        margin-top: 8px;
+        border-radius: 8px;
+        object-fit: contain;
+    }
+
     /* FEATURE CARDS */
     .feature-card {
         padding: 16px;
@@ -159,6 +167,13 @@ else:
 f_col1, f_col2 = st.columns([4, 8])
 with f_col1:
     selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
+    
+    # Dynamic Branch Logo Display logic
+    logo_filename = f"{selected_warehouse}_logo.png"
+    if os.path.exists(logo_filename):
+        logo_base64 = get_base64_of_bin_file(logo_filename)
+        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="branch-logo">', unsafe_allow_html=True)
+
 with f_col2:
     selected_dates_range = st.date_input("Select Date Range • Auto-Fetch (No File Required)", value=[])
     st.markdown("<p style='font-size: 12px; color: gray; font-weight: normal; margin-top: -12px;'>Weekly Refresh 10-08-2026 ✅</p>", unsafe_allow_html=True)
@@ -225,6 +240,8 @@ def parse_time(time_val):
     return None
 
 temp_dfs = []
+missing_files = []
+
 if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
     start_d, end_d = selected_dates_range
     delta = end_d - start_d
@@ -255,7 +272,9 @@ if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
                     tdf['Date'] = d_str
                     temp_dfs.append(tdf)
                 except:
-                    pass
+                    missing_files.append(d_str)
+        else:
+            missing_files.append(d_str)
 
 att_df = pd.concat(temp_dfs, ignore_index=True) if temp_dfs else pd.DataFrame()
 
@@ -353,7 +372,7 @@ if not att_df.empty:
         if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
     with c4:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
+        if st.button("⏳ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
 
     display_df = final_df.copy()
     if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters
@@ -368,17 +387,24 @@ if not att_df.empty:
     
     st.dataframe(display_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
 
+    # Agar kuch dates ki files missing hon toh warning dikhayein
+    if missing_files:
+        st.warning(f"⚠️ **Note:** Following dates have no data file reflected for **{selected_warehouse}**: {', '.join(missing_files)}")
+
 else:
-    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown('<div class="feature-card fc-blue"><div style="font-size:22px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="feature-card fc-orange"><div style="font-size:22px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="feature-card fc-green"><div style="font-size:22px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
-    with c4:
-        st.markdown('<div class="feature-card fc-purple"><div style="font-size:22px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
+    if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
+        st.info(f"📂 **No data reflected:** No attendance files found for **{selected_warehouse}** in the selected date range.")
+    else:
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown('<div class="feature-card fc-blue"><div style="font-size:22px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
+        with c2:
+            st.markdown('<div class="feature-card fc-orange"><div style="font-size:22px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
+        with c3:
+            st.markdown('<div class="feature-card fc-green"><div style="font-size:22px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
+        with c4:
+            st.markdown('<div class="feature-card fc-purple"><div style="font-size:22px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
 
     st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 15px 0 10px 0;'>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #64748b; font-size: 11px; font-weight: 600; margin: 0;'>Built for a smarter, stronger and compliant workplace</p>", unsafe_allow_html=True)
