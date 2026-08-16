@@ -330,7 +330,6 @@ if not att_df.empty:
         else:
             return pd.Series([total_punches, target_str, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
-    # Column ka naam "Mispunch Category" se "Category" kar diya gaya hai
     analysis_df = att_df.apply(analyze_row, axis=1)
     analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Category', 'Issue Type']
     
@@ -365,7 +364,6 @@ if not att_df.empty:
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        # Number wapas poora laga diya gaya hai
         st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
         if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
     with c2:
@@ -384,7 +382,6 @@ if not att_df.empty:
     elif st.session_state.selected_view == "mispunches": display_df = mispunches.copy()
     elif st.session_state.selected_view == "defaulters": display_df = defaulters.copy()
 
-    # Data ko ID aur Date ke hisaab se sort kiya gaya hai taake history ek sath dikhe
     display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
 
     st.subheader(f"📊 Results View ({len(display_df)} Records)")
@@ -392,7 +389,6 @@ if not att_df.empty:
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
-    # Columns chhupane ka logic: Defaulters wale tabs mein IN/OUT aur Total Punches hide karein
     cols_to_drop = ['Issue Type']
     if st.session_state.selected_view in ["defaulters", "rep_defaulters"]:
         cols_to_drop.append('Total Punches')
@@ -400,8 +396,30 @@ if not att_df.empty:
         cols_to_drop.extend(punch_cols_to_hide)
         
     cols_to_drop = [c for c in cols_to_drop if c in display_df.columns]
+    
+    final_display_df = display_df.drop(columns=cols_to_drop)
 
-    st.dataframe(display_df.drop(columns=cols_to_drop), use_container_width=True, hide_index=True)
+    # NAYA ADDITION: Table Click Feature (Bina design change kiye)
+    try:
+        selection_event = st.dataframe(
+            final_display_df, 
+            use_container_width=True, 
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single_row"
+        )
+        
+        if selection_event and len(selection_event.selection.rows) > 0:
+            selected_idx = selection_event.selection.rows[0]
+            selected_id = final_display_df.iloc[selected_idx]['P.Soft ID']
+            selected_name = final_display_df.iloc[selected_idx]['Employee Name']
+            total_offenses = len(final_display_df[final_display_df['P.Soft ID'] == selected_id])
+            
+            st.info(f"📌 **{selected_name}** (ID: {selected_id}) ki is list mein total **{total_offenses}** entries hain.")
+            
+    except TypeError:
+        # Fallback in case Streamlit version doesn't support click feature
+        st.dataframe(final_display_df, use_container_width=True, hide_index=True)
 
     if missing_files:
         st.warning(f"⚠️ **Note:** Following dates have no data file reflected for **{selected_warehouse}**: {', '.join(missing_files)}")
