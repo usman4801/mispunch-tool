@@ -399,14 +399,14 @@ if not att_df.empty:
     
     final_display_df = display_df.drop(columns=cols_to_drop)
 
-    # NAYA ADDITION: Table Click Feature (Bina design change kiye)
+    # NAYA ADDITION: Table Click Feature (Bina design change kiye, dash ke sath fixed)
     try:
         selection_event = st.dataframe(
             final_display_df, 
             use_container_width=True, 
             hide_index=True,
             on_select="rerun",
-            selection_mode="single_row"
+            selection_mode="single-row"
         )
         
         if selection_event and len(selection_event.selection.rows) > 0:
@@ -417,8 +417,8 @@ if not att_df.empty:
             
             st.info(f"📌 **{selected_name}** (ID: {selected_id}) ki is list mein total **{total_offenses}** entries hain.")
             
-    except TypeError:
-        # Fallback in case Streamlit version doesn't support click feature
+    except Exception as e:
+        # Fallback agar kisi wajah se click feature older version par run na ho
         st.dataframe(final_display_df, use_container_width=True, hide_index=True)
 
     if missing_files:
