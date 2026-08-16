@@ -330,8 +330,9 @@ if not att_df.empty:
         else:
             return pd.Series([total_punches, target_str, hours_str, "Error", "Incomplete Punches", "Mispunch"])
 
+    # Column ka naam "Mispunch Category" se "Category" kar diya gaya hai
     analysis_df = att_df.apply(analyze_row, axis=1)
-    analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Mispunch Category', 'Issue Type']
+    analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Category', 'Issue Type']
     
     punches_clean = pd.DataFrame()
     for idx, col in enumerate(punch_cols):
@@ -347,11 +348,9 @@ if not att_df.empty:
     
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
-    # Strictly isolate Mispunches and Defaulter Hours
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     
-    # Calculate counts and repeated IDs independently
     mis_counts = mispunches['P.Soft ID'].value_counts()
     def_counts = defaulters['P.Soft ID'].value_counts()
     
@@ -366,10 +365,11 @@ if not att_df.empty:
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_def_ids)}</div></div>', unsafe_allow_html=True)
+        # Number wapas poora laga diya gaya hai
+        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
         if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
     with c2:
-        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mis_ids)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
         if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
     with c3:
         st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
@@ -379,17 +379,29 @@ if not att_df.empty:
         if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
 
     display_df = final_df.copy()
-    if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters
-    elif st.session_state.selected_view == "rep_mispunches": display_df = repeated_mispunches
-    elif st.session_state.selected_view == "mispunches": display_df = mispunches
-    elif st.session_state.selected_view == "defaulters": display_df = defaulters
+    if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
+    elif st.session_state.selected_view == "rep_mispunches": display_df = repeated_mispunches.copy()
+    elif st.session_state.selected_view == "mispunches": display_df = mispunches.copy()
+    elif st.session_state.selected_view == "defaulters": display_df = defaulters.copy()
+
+    # Data ko ID aur Date ke hisaab se sort kiya gaya hai taake history ek sath dikhe
+    display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
 
     st.subheader(f"📊 Results View ({len(display_df)} Records)")
     search = st.text_input("🔍 Search Employee by Name or ID...")
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
-    st.dataframe(display_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
+    # Columns chhupane ka logic: Defaulters wale tabs mein IN/OUT aur Total Punches hide karein
+    cols_to_drop = ['Issue Type']
+    if st.session_state.selected_view in ["defaulters", "rep_defaulters"]:
+        cols_to_drop.append('Total Punches')
+        punch_cols_to_hide = [c for c in display_df.columns if "IN" in c or "OUT" in c]
+        cols_to_drop.extend(punch_cols_to_hide)
+        
+    cols_to_drop = [c for c in cols_to_drop if c in display_df.columns]
+
+    st.dataframe(display_df.drop(columns=cols_to_drop), use_container_width=True, hide_index=True)
 
     if missing_files:
         st.warning(f"⚠️ **Note:** Following dates have no data file reflected for **{selected_warehouse}**: {', '.join(missing_files)}")
