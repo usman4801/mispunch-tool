@@ -168,11 +168,13 @@ f_col1, f_col2 = st.columns([4, 8])
 with f_col1:
     selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
     
-    # Dynamic Branch Logo Display logic
-    logo_filename = f"{selected_warehouse}_logo.png"
-    if os.path.exists(logo_filename):
-        logo_base64 = get_base64_of_bin_file(logo_filename)
-        st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="branch-logo">', unsafe_allow_html=True)
+    possible_logos = [f"{selected_warehouse}_logo.png", f"{selected_warehouse}_logo.jpeg", f"{selected_warehouse}_logo.jpg"]
+    logo_path = next((p for p in possible_logos if os.path.exists(p)), None)
+    
+    if logo_path:
+        logo_base64 = get_base64_of_bin_file(logo_path)
+        mime_type = "image/jpeg" if logo_path.endswith((".jpeg", ".jpg")) else "image/png"
+        st.markdown(f'<img src="data:{mime_type};base64,{logo_base64}" class="branch-logo">', unsafe_allow_html=True)
 
 with f_col2:
     selected_dates_range = st.date_input("Select Date Range • Auto-Fetch (No File Required)", value=[])
@@ -345,9 +347,11 @@ if not att_df.empty:
     
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
+    # Strictly separate Mispunches and Defaulter Hours
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     
+    # Calculate counts and repeated IDs strictly for each category independently
     mis_counts = mispunches['P.Soft ID'].value_counts()
     def_counts = defaulters['P.Soft ID'].value_counts()
     
@@ -362,17 +366,17 @@ if not att_df.empty:
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_def_ids)}</div></div>', unsafe_allow_html=True)
         if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
     with c2:
-        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mis_ids)}</div></div>', unsafe_allow_html=True)
         if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
     with c3:
         st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
         if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
     with c4:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏳ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
+        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
 
     display_df = final_df.copy()
     if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters
@@ -387,7 +391,6 @@ if not att_df.empty:
     
     st.dataframe(display_df.drop(columns=['Issue Type']), use_container_width=True, hide_index=True)
 
-    # Agar kuch dates ki files missing hon toh warning dikhayein
     if missing_files:
         st.warning(f"⚠️ **Note:** Following dates have no data file reflected for **{selected_warehouse}**: {', '.join(missing_files)}")
 
