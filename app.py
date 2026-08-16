@@ -203,7 +203,7 @@ seven_hours_default = (
 manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", value=seven_hours_default)
 manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
-exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 203118578, 203073563, 204043092, 203052485, 203160007, 113015344, 203160009, 203118579, 203073561, 203052856, 203073425, 207574273, 202383469, 202383469, 203073699")
+exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 106495539, 203118578, 203073563, 204043092, 203052485, 203160007, 113015344, 203160009, 203118579, 203073561, 203052856, 203073425, 207574273, 202383469, 202383469, 203073699")
 exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
 @st.cache_data
