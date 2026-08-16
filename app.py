@@ -347,11 +347,11 @@ if not att_df.empty:
     
     final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
 
-    # Strictly separate Mispunches and Defaulter Hours
+    # Strictly isolate Mispunches and Defaulter Hours
     mispunches = final_df[final_df['Issue Type'] == "Mispunch"].copy()
     defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
     
-    # Calculate counts and repeated IDs strictly for each category independently
+    # Calculate counts and repeated IDs independently
     mis_counts = mispunches['P.Soft ID'].value_counts()
     def_counts = defaulters['P.Soft ID'].value_counts()
     
