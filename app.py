@@ -307,8 +307,12 @@ if not att_df.empty:
         punches = [p for p in punches if p is not None]
         total_punches = len(punches)
         target_str = str(row.get('Working Hours', '9 Hours'))
-        min_mins = 408 if '7' in target_str else 528
-        max_mins = 432 if '7' in target_str else 552
+        
+        # CHANGED: 15 minutes grace period logic applied here
+        # For 7 Hours (420 mins): 420-15 = 405, 420+15 = 435
+        # For 9 Hours (540 mins): 540-15 = 525, 540+15 = 555
+        min_mins = 405 if '7' in target_str else 525
+        max_mins = 435 if '7' in target_str else 555
 
         if total_punches == 0: return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
         if total_punches == 1: return pd.Series([1, target_str, "N/A", "Error", "Single Scan Only", "Mispunch"])
@@ -399,7 +403,6 @@ if not att_df.empty:
     
     final_display_df = display_df.drop(columns=cols_to_drop)
 
-    # NAYA ADDITION: Table Click Feature (Bina design change kiye, dash ke sath fixed)
     try:
         selection_event = st.dataframe(
             final_display_df, 
@@ -418,7 +421,6 @@ if not att_df.empty:
             st.info(f"📌 **{selected_name}** (ID: {selected_id}) ki is list mein total **{total_offenses}** entries hain.")
             
     except Exception as e:
-        # Fallback agar kisi wajah se click feature older version par run na ho
         st.dataframe(final_display_df, use_container_width=True, hide_index=True)
 
     if missing_files:
