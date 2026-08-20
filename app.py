@@ -37,6 +37,18 @@ st.markdown(
     [data-testid="stConnectionStatus"] {display: none !important; visibility: hidden !important;}
     .st-emotion-cache-12w0ip6 {display: none !important; visibility: hidden !important;}
     
+    /* ENSURE DOWNLOAD BUTTON STAYS VISIBLE */
+    div[data-testid="stDownloadButton"] button, 
+    div[data-testid="stDownloadButton"] .stActionButton {
+        display: inline-flex !important;
+        visibility: visible !important;
+    }
+    
+    /* PREVENT DATAFRAME COLUMNS FROM BEING DRAGGED/RESIZED IF POSSIBLE */
+    div[data-testid="stDataFrameResizable"] {
+        pointer-events: none !important;
+    }
+    
     /* CLEAN PROFESSIONAL SOLID BACKGROUND */
     .stApp {
         background-color: #f8fafc;
@@ -75,7 +87,6 @@ st.markdown(
         font-size: 13px !important;
     }
     
-    /* UPDATED: LIGHT ORANGE BORDER FOR DATE INPUT */
     div[data-testid="stDateInput"] {
         border: 2px dashed #ffb74d !important;
         padding: 6px 12px !important;
@@ -125,13 +136,18 @@ st.markdown(
     .fc-title { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-top: 6px; margin-bottom: 3px; }
     .fc-text { font-size: 10.5px; color: #475569; line-height: 1.3; font-weight: 500; }
 
-    /* METRIC CARDS INSIDE DASHBOARD */
+    /* ORIGINAL HOVER & POPUP EFFECT RESTORED */
     .metric-card {
         padding: 22px;
         border-radius: 14px 14px 0 0;
         color: white;
         font-family: sans-serif;
         box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     }
     .card-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
     .card-red { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
@@ -163,7 +179,7 @@ if header_img_str:
 else:
     st.warning("⚠️ Please upload 'header_banner.png' to GitHub repository.")
 
-# Filter Section: Site on left, Calendar taking the remaining space
+# Filter Section
 f_col1, f_col2 = st.columns([4, 8])
 with f_col1:
     selected_warehouse = st.selectbox("📍 Site", options=["AUH1", "DXB5", "DXB3"])
@@ -364,7 +380,7 @@ if not att_df.empty:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ORIGINAL EXACT TILES SERIES & BUTTONS
+    # EXACT ORIGINAL TILES RESTORED (Sequence Maintained)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
@@ -387,21 +403,23 @@ if not att_df.empty:
 
     display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
 
-    # RESULTS VIEW HEADER & DOWNLOAD REPORT BUTTON SIDE-BY-SIDE
-    col_title, col_download = st.columns([7, 3])
-    with col_title:
-        st.subheader(f"📊 Results View ({len(display_df)} Records)")
+    st.subheader(f"📊 Results View ({len(display_df)} Records)")
+    
+    # SEARCH & DOWNLOAD FILE OPTION SIDE-BY-SIDE
+    col_search, col_download = st.columns([7, 3])
+    with col_search:
+        search = st.text_input("🔍 Search Employee by Name or ID...")
     with col_download:
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) # To align with the search bar
         csv_data = display_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Download Report",
+            label="📥 Download File",
             data=csv_data,
             file_name=f"compliance_report_{st.session_state.selected_view}.csv",
             mime="text/csv",
             use_container_width=True
         )
 
-    search = st.text_input("🔍 Search Employee by Name or ID...")
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
     
@@ -415,6 +433,7 @@ if not att_df.empty:
     
     final_display_df = display_df.drop(columns=cols_to_drop)
 
+    # EXACT ORIGINAL DATAFRAME RENDER
     try:
         selection_event = st.dataframe(
             final_display_df, 
