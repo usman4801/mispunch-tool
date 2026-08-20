@@ -125,19 +125,13 @@ st.markdown(
     .fc-title { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-top: 6px; margin-bottom: 3px; }
     .fc-text { font-size: 10.5px; color: #475569; line-height: 1.3; font-weight: 500; }
 
-    /* ORIGINAL METRIC CARDS STYLING */
+    /* METRIC CARDS INSIDE DASHBOARD */
     .metric-card {
         padding: 22px;
         border-radius: 14px 14px 0 0;
         color: white;
         font-family: sans-serif;
         box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     }
     .card-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
     .card-red { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
@@ -370,74 +364,20 @@ if not att_df.empty:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ORIGINAL TILES SERIES: 1. Defaulter Hours, 2. Mispunches, 3. Repeated Mispunches, 4. Repeated Time Deficits
+    # ORIGINAL EXACT TILES SERIES & BUTTONS
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        card_def_html = f'''
-        <div class="metric-card card-purple" id="card_def">
-            <div class="card-title">⏰ Defaulter Hours</div>
-            <div class="card-value">{len(defaulters)}</div>
-        </div>
-        '''
-        st.markdown(card_def_html, unsafe_allow_html=True)
-        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): 
-            st.session_state.selected_view = "defaulters"
-            st.rerun()
+        st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
+        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
     with c2:
-        card_mis_html = f'''
-        <div class="metric-card card-orange" id="card_mis">
-            <div class="card-title">⚠️ Mispunches</div>
-            <div class="card-value">{len(mispunches)}</div>
-        </div>
-        '''
-        st.markdown(card_mis_html, unsafe_allow_html=True)
-        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): 
-            st.session_state.selected_view = "mispunches"
-            st.rerun()
+        st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
+        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
     with c3:
-        card_rep_mis_html = f'''
-        <div class="metric-card card-red" id="card_rep_mis">
-            <div class="card-title">🔄 Repeated Mispunches</div>
-            <div class="card-value">{len(repeated_mispunches)}</div>
-        </div>
-        '''
-        st.markdown(card_rep_mis_html, unsafe_allow_html=True)
-        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): 
-            st.session_state.selected_view = "rep_mispunches"
-            st.rerun()
+        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
+        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
     with c4:
-        card_rep_def_html = f'''
-        <div class="metric-card card-blue" id="card_rep_def">
-            <div class="card-title">⏳ Repeated Time Deficits</div>
-            <div class="card-value">{len(repeated_defaulters)}</div>
-        </div>
-        '''
-        st.markdown(card_rep_def_html, unsafe_allow_html=True)
-        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): 
-            st.session_state.selected_view = "rep_defaulters"
-            st.rerun()
-
-    # JavaScript to make original metric cards clickable
-    st.markdown(
-        """
-        <script>
-        const doc = window.parent.document;
-        doc.getElementById('card_def')?.addEventListener('click', () => {
-            doc.querySelector('button[key="btn_def"]')?.click();
-        });
-        doc.getElementById('card_mis')?.addEventListener('click', () => {
-            doc.querySelector('button[key="btn_mis"]')?.click();
-        });
-        doc.getElementById('card_rep_mis')?.addEventListener('click', () => {
-            doc.querySelector('button[key="btn_rep_mis"]')?.click();
-        });
-        doc.getElementById('card_rep_def')?.addEventListener('click', () => {
-            doc.querySelector('button[key="btn_rep_def"]')?.click();
-        });
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
+        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
+        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
 
     display_df = final_df.copy()
     if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
@@ -447,7 +387,7 @@ if not att_df.empty:
 
     display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
 
-    # HEADER WITH DOWNLOAD REPORT BUTTON
+    # RESULTS VIEW HEADER & DOWNLOAD REPORT BUTTON SIDE-BY-SIDE
     col_title, col_download = st.columns([7, 3])
     with col_title:
         st.subheader(f"📊 Results View ({len(display_df)} Records)")
