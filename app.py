@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import base64
 import os
 import glob
-import streamlit.components.v1 as components  # <--- NEW ADDITION: For clickable tiles script
+import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="Workforce Compliance Monitor", 
@@ -145,7 +145,7 @@ st.markdown(
         font-family: sans-serif;
         box-shadow: 0 6px 15px rgba(0,0,0,0.1);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
-        cursor: pointer; /* <--- Shows hand icon on hover to signify it's clickable */
+        cursor: pointer;
     }
     .metric-card:hover {
         transform: translateY(-4px);
@@ -219,10 +219,8 @@ seven_hours_default = (
     "206897649, 206868005, 206239524, 206136718"
 )
 manual_7_ids = st.sidebar.text_area("Paste 7-Hour Employee IDs (Comma separated)", value=seven_hours_default)
-manual_ids_list = [clean_id(x) for x in manual_7_ids.split(',')] if manual_7_ids else []
 
 exclude_ids_input = st.sidebar.text_area("Paste IDs to Ignore", value="203160008, 106495539, 203118578, 203073563, 204043092, 203052485, 203160007, 113015344, 203160009, 203118579, 203073561, 203052856, 203073425, 207574273, 202383469, 202383469, 203073699")
-exclude_list = [clean_id(x) for x in exclude_ids_input.split(',')] if exclude_ids_input else []
 
 @st.cache_data
 def load_permanent_roster():
@@ -248,8 +246,6 @@ def load_permanent_roster():
                 pass
     return roster_map
 
-roster_hours_map = load_permanent_roster()
-
 def parse_time(time_val):
     if pd.isna(time_val) or str(time_val).strip().lower() in ["nan", "none", ""]: return None
     for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p", "%H:%M:%S"]:
@@ -259,22 +255,29 @@ def parse_time(time_val):
             continue
     return None
 
-temp_dfs = []
-missing_files = []
-
-if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
-    start_d, end_d = selected_dates_range
+# ==========================================
+# PERFORMANCE CACHE (FAST LOADING)
+# ==========================================
+@st.cache_data(show_spinner=False)
+def process_attendance_data(dates_tuple, warehouse, manual_str, exclude_str, roster_map):
+    manual_list = [clean_id(x) for x in manual_str.split(',')] if manual_str else []
+    exclude_list = [clean_id(x) for x in exclude_str.split(',')] if exclude_str else []
+    
+    t_dfs = []
+    m_files = []
+    
+    start_d, end_d = dates_tuple
     delta = end_d - start_d
     date_list = [start_d + timedelta(days=i) for i in range(delta.days + 1)]
     
     for d in date_list:
         d_str = d.strftime("%Y-%m-%d")
         
-        if selected_warehouse == "AUH1":
+        if warehouse == "AUH1":
             possible_paths = [f"{d_str}.xlsx.xlsx", f"{d_str}.xlsx", f"{d_str}.xls"]
-        elif selected_warehouse == "DXB5":
+        elif warehouse == "DXB5":
             possible_paths = [f"DXB5 {d_str}.xlsx.xlsx", f"DXB5 {d_str}.xlsx", f"DXB5 {d_str}.xls"]
-        elif selected_warehouse == "DXB3":
+        elif warehouse == "DXB3":
             possible_paths = [f"DXB3 {d_str}.xlsx.xlsx", f"DXB3 {d_str}.xlsx", f"DXB3 {d_str}.xls"]
         else:
             possible_paths = [f"{d_str}.xlsx.xlsx", f"{d_str}.xlsx"]
@@ -285,223 +288,235 @@ if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
             try:
                 tdf = pd.read_excel(f_path, sheet_name=0, dtype=str)
                 tdf['Date'] = d_str
-                temp_dfs.append(tdf)
+                t_dfs.append(tdf)
             except:
                 try:
                     tdf = pd.read_csv(f_path, dtype=str)
                     tdf['Date'] = d_str
-                    temp_dfs.append(tdf)
+                    t_dfs.append(tdf)
                 except:
-                    missing_files.append(d_str)
+                    m_files.append(d_str)
         else:
-            missing_files.append(d_str)
+            m_files.append(d_str)
 
-att_df = pd.concat(temp_dfs, ignore_index=True) if temp_dfs else pd.DataFrame()
+    a_df = pd.concat(t_dfs, ignore_index=True) if t_dfs else pd.DataFrame()
 
-if not att_df.empty:
-    att_df.columns = [str(c).strip() for c in att_df.columns.tolist()]
-    id_col = att_df.columns[0]
-    name_col = att_df.columns[1]
-    att_df['Clean_ID'] = att_df[id_col].apply(clean_id)
+    if not a_df.empty:
+        a_df.columns = [str(c).strip() for c in a_df.columns.tolist()]
+        i_col = a_df.columns[0]
+        n_col = a_df.columns[1]
+        a_df['Clean_ID'] = a_df[i_col].apply(clean_id)
 
-    if exclude_list:
-        att_df = att_df[~att_df['Clean_ID'].isin(exclude_list)].copy()
-        att_df.reset_index(drop=True, inplace=True)
+        if exclude_list:
+            a_df = a_df[~a_df['Clean_ID'].isin(exclude_list)].copy()
+            a_df.reset_index(drop=True, inplace=True)
 
-    def determine_working_hours(row):
-        cid = row['Clean_ID']
-        if manual_ids_list and cid in manual_ids_list: return "7 Hours"
-        if roster_hours_map and cid in roster_hours_map: return roster_hours_map[cid]
-        return "9 Hours"
+        def get_hours(row):
+            cid = row['Clean_ID']
+            if manual_list and cid in manual_list: return "7 Hours"
+            if roster_map and cid in roster_map: return roster_map[cid]
+            return "9 Hours"
 
-    att_df['Working Hours'] = att_df.apply(determine_working_hours, axis=1)
-    ignore_keywords = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id', 'date']
-    punch_cols = [col for col in att_df.columns if not any(k in col.lower() for k in ignore_keywords)]
-    if len(punch_cols) == 0 and len(att_df.columns) > 4:
-        punch_cols = [c for c in att_df.columns[4:] if c != 'Date']
+        a_df['Working Hours'] = a_df.apply(get_hours, axis=1)
+        ignore_kws = ['id', 'name', 'psoft', 'employee', 'building', 'country', 'working hours', 'clean_id', 'date']
+        p_cols = [col for col in a_df.columns if not any(k in col.lower() for k in ignore_kws)]
+        if len(p_cols) == 0 and len(a_df.columns) > 4:
+            p_cols = [c for c in a_df.columns[4:] if c != 'Date']
 
-    def analyze_row(row):
-        punches = [parse_time(row.get(c)) for c in punch_cols]
-        punches = [p for p in punches if p is not None]
-        total_punches = len(punches)
-        target_str = str(row.get('Working Hours', '9 Hours'))
+        def analyze(row):
+            punches = [parse_time(row.get(c)) for c in p_cols]
+            punches = [p for p in punches if p is not None]
+            tot_p = len(punches)
+            tgt = str(row.get('Working Hours', '9 Hours'))
+            
+            min_mins = 405 if '7' in tgt else 525
+            max_mins = 435 if '7' in tgt else 555
+
+            if tot_p == 0: return pd.Series([0, tgt, "00:00", "OK", "Absent", "Clean"])
+            if tot_p == 1: return pd.Series([1, tgt, "N/A", "Error", "Single Scan Only", "Mispunch"])
+
+            dummy = datetime(2026, 1, 1)
+            tot_secs = 0
+            for i in range(0, tot_p - (tot_p % 2), 2):
+                s = datetime.combine(dummy, punches[i])
+                e = datetime.combine(dummy, punches[i+1])
+                if e < s: e += timedelta(days=1)
+                tot_secs += (e - s).total_seconds()
+            eff_m = tot_secs / 60
+            hr_str = f"{int(tot_secs // 3600):02d}:{int((tot_secs % 3600) // 60):02d}"
+            
+            if tot_p % 2 == 0:
+                if min_mins <= eff_m <= max_mins: return pd.Series([tot_p, tgt, hr_str, "OK", "Complete Within Window", "Clean"])
+                elif eff_m < min_mins: return pd.Series([tot_p, tgt, hr_str, "Error", "Under Time", "Defaulter Hours"])
+                else: return pd.Series([tot_p, tgt, hr_str, "Error", "Over Time", "Defaulter Hours"])
+            else:
+                return pd.Series([tot_p, tgt, hr_str, "Error", "Incomplete Punches", "Mispunch"])
+
+        an_df = a_df.apply(analyze, axis=1)
+        an_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Category', 'Issue Type']
         
-        min_mins = 405 if '7' in target_str else 525
-        max_mins = 435 if '7' in target_str else 555
+        p_clean = pd.DataFrame()
+        for idx, col in enumerate(p_cols):
+            label = "IN" if idx % 2 == 0 else "OUT"
+            num = (idx // 2) + 1
+            p_clean[f"{label} ({num})" if num > 1 else label] = a_df[col].apply(lambda x: parse_time(x).strftime("%H:%M") if parse_time(x) else "")
 
-        if total_punches == 0: return pd.Series([0, target_str, "00:00", "OK", "Absent", "Clean"])
-        if total_punches == 1: return pd.Series([1, target_str, "N/A", "Error", "Single Scan Only", "Mispunch"])
-
-        dummy_date = datetime(2026, 1, 1)
-        total_secs = 0
-        for i in range(0, total_punches - (total_punches % 2), 2):
-            s = datetime.combine(dummy_date, punches[i])
-            e = datetime.combine(dummy_date, punches[i+1])
-            if e < s: e += timedelta(days=1)
-            total_secs += (e - s).total_seconds()
-        eff_mins = total_secs / 60
-        hours_str = f"{int(total_secs // 3600):02d}:{int((total_secs % 3600) // 60):02d}"
+        b_info = pd.DataFrame({
+            'Date': a_df['Date'],
+            'P.Soft ID': a_df[i_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
+            'Employee Name': a_df[n_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        })
         
-        if total_punches % 2 == 0:
-            if min_mins <= eff_mins <= max_mins: return pd.Series([total_punches, target_str, hours_str, "OK", "Complete Within Window", "Clean"])
-            elif eff_mins < min_mins: return pd.Series([total_punches, target_str, hours_str, "Error", "Under Time", "Defaulter Hours"])
-            else: return pd.Series([total_punches, target_str, hours_str, "Error", "Over Time", "Defaulter Hours"])
-        else:
-            return pd.Series([total_punches, target_str, hours_str, "Error", "Incomplete Punches", "Mispunch"])
+        f_df = pd.concat([b_info, an_df, p_clean], axis=1)
+        return f_df, m_files
+    else:
+        return pd.DataFrame(), m_files
 
-    analysis_df = att_df.apply(analyze_row, axis=1)
-    analysis_df.columns = ['Total Punches', 'Assigned Target', 'Calculated Hours', 'Status', 'Category', 'Issue Type']
-    
-    punches_clean = pd.DataFrame()
-    for idx, col in enumerate(punch_cols):
-        label = "IN" if idx % 2 == 0 else "OUT"
-        num = (idx // 2) + 1
-        punches_clean[f"{label} ({num})" if num > 1 else label] = att_df[col].apply(lambda x: parse_time(x).strftime("%H:%M") if parse_time(x) else "")
+roster_hours_map = load_permanent_roster()
 
-    base_info = pd.DataFrame({
-        'Date': att_df['Date'],
-        'P.Soft ID': att_df[id_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip(),
-        'Employee Name': att_df[name_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-    })
+if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
     
-    final_df = pd.concat([base_info, analysis_df, punches_clean], axis=1)
-
-    mispunches = final_df[final_df['Issue Type'] == "Mispunch"].copy()
-    defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
-    
-    mis_counts = mispunches['P.Soft ID'].value_counts()
-    def_counts = defaulters['P.Soft ID'].value_counts()
-    
-    repeated_mis_ids = mis_counts[mis_counts > 1].index
-    repeated_def_ids = def_counts[def_counts > 1].index
-    
-    repeated_mispunches = mispunches[mispunches['P.Soft ID'].isin(repeated_mis_ids)]
-    repeated_defaulters = defaulters[defaulters['P.Soft ID'].isin(repeated_def_ids)]
-
-    if "selected_view" not in st.session_state: st.session_state.selected_view = "all"
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # TILES RENDER (Added 'id' attributes so script can find them)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(f'<div class="metric-card card-purple" id="card_def"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
-    with c2:
-        st.markdown(f'<div class="metric-card card-orange" id="card_mis"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
-    with c3:
-        st.markdown(f'<div class="metric-card card-red" id="card_rep_mis"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
-    with c4:
-        st.markdown(f'<div class="metric-card card-blue" id="card_rep_def"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
-
-    # THIS SCRIPT LINKS THE TILE CLICKS TO THE BUTTON CLICKS IN THE BACKGROUND
-    components.html(
-        """
-        <script>
-        const doc = window.parent.document;
-        function bindCardClick(cardId, buttonTextMatch) {
-            const card = doc.getElementById(cardId);
-            if (card) {
-                card.onclick = function() {
-                    const buttons = Array.from(doc.querySelectorAll("button"));
-                    const targetBtn = buttons.find(b => b.innerText.includes(buttonTextMatch));
-                    if (targetBtn) {
-                        targetBtn.click();
-                    }
-                };
-            }
-        }
-        setTimeout(() => {
-            bindCardClick('card_def', '⏰ View Defaulters');
-            bindCardClick('card_mis', '⚠️ View Mispunches');
-            bindCardClick('card_rep_mis', '🔄 View Rep. Mispunches');
-            bindCardClick('card_rep_def', '⏳ View Rep. Deficits');
-        }, 150);
-        </script>
-        """,
-        height=0,
-        width=0
+    # ⚡ DATA IS PROCESSED AND CACHED HERE ⚡
+    final_df, missing_files = process_attendance_data(
+        tuple(selected_dates_range), 
+        selected_warehouse, 
+        manual_7_ids, 
+        exclude_ids_input, 
+        roster_hours_map
     )
 
-    display_df = final_df.copy()
-    if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
-    elif st.session_state.selected_view == "rep_mispunches": display_df = repeated_mispunches.copy()
-    elif st.session_state.selected_view == "mispunches": display_df = mispunches.copy()
-    elif st.session_state.selected_view == "defaulters": display_df = defaulters.copy()
-
-    display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
-
-    st.subheader(f"📊 Results View ({len(display_df)} Records)")
-    
-    # SEARCH & DOWNLOAD FILE OPTION SIDE-BY-SIDE
-    col_search, col_download = st.columns([7, 3])
-    with col_search:
-        search = st.text_input("🔍 Search Employee by Name or ID...")
-    with col_download:
-        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) # To align with the search bar
-        csv_data = display_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download File",
-            data=csv_data,
-            file_name=f"compliance_report_{st.session_state.selected_view}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-
-    if search:
-        display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
-    
-    cols_to_drop = ['Issue Type']
-    if st.session_state.selected_view in ["defaulters", "rep_defaulters"]:
-        cols_to_drop.append('Total Punches')
-        punch_cols_to_hide = [c for c in display_df.columns if "IN" in c or "OUT" in c]
-        cols_to_drop.extend(punch_cols_to_hide)
+    if not final_df.empty:
+        mispunches = final_df[final_df['Issue Type'] == "Mispunch"].copy()
+        defaulters = final_df[final_df['Issue Type'] == "Defaulter Hours"].copy()
         
-    cols_to_drop = [c for c in cols_to_drop if c in display_df.columns]
-    
-    final_display_df = display_df.drop(columns=cols_to_drop)
-
-    # EXACT ORIGINAL DATAFRAME RENDER
-    try:
-        selection_event = st.dataframe(
-            final_display_df, 
-            use_container_width=True, 
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row"
-        )
+        mis_counts = mispunches['P.Soft ID'].value_counts()
+        def_counts = defaulters['P.Soft ID'].value_counts()
         
-        if selection_event and len(selection_event.selection.rows) > 0:
-            selected_idx = selection_event.selection.rows[0]
-            selected_id = final_display_df.iloc[selected_idx]['P.Soft ID']
-            selected_name = final_display_df.iloc[selected_idx]['Employee Name']
-            total_offenses = len(final_display_df[final_display_df['P.Soft ID'] == selected_id])
-            
-            st.info(f"📌 **{selected_name}** (ID: {selected_id}) ki is list mein total **{total_offenses}** entries hain.")
-            
-    except Exception as e:
-        st.dataframe(final_display_df, use_container_width=True, hide_index=True)
+        repeated_mis_ids = mis_counts[mis_counts > 1].index
+        repeated_def_ids = def_counts[def_counts > 1].index
+        
+        repeated_mispunches = mispunches[mispunches['P.Soft ID'].isin(repeated_mis_ids)]
+        repeated_defaulters = defaulters[defaulters['P.Soft ID'].isin(repeated_def_ids)]
 
-    if missing_files:
-        st.warning(f"⚠️ **Note:** Following dates have no data file reflected for **{selected_warehouse}**: {', '.join(missing_files)}")
+        if "selected_view" not in st.session_state: st.session_state.selected_view = "all"
 
-else:
-    if isinstance(selected_dates_range, tuple) and len(selected_dates_range) == 2:
-        st.info(f"📂 **No data reflected:** No attendance files found for **{selected_warehouse}** in the selected date range.")
-    else:
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.markdown('<div class="feature-card fc-blue"><div style="font-size:22px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-card card-purple" id="card_def"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
+            if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
         with c2:
-            st.markdown('<div class="feature-card fc-orange"><div style="font-size:22px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-card card-orange" id="card_mis"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
+            if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
         with c3:
-            st.markdown('<div class="feature-card fc-green"><div style="font-size:22px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-card card-red" id="card_rep_mis"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
+            if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
         with c4:
-            st.markdown('<div class="feature-card fc-purple"><div style="font-size:22px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-card card-blue" id="card_rep_def"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
+            if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
 
-    st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 15px 0 10px 0;'>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #64748b; font-size: 11px; font-weight: 600; margin: 0;'>Built for a smarter, stronger and compliant workplace</p>", unsafe_allow_html=True)
+        components.html(
+            """
+            <script>
+            const doc = window.parent.document;
+            function bindCardClick(cardId, buttonTextMatch) {
+                const card = doc.getElementById(cardId);
+                if (card) {
+                    card.onclick = function() {
+                        const buttons = Array.from(doc.querySelectorAll("button"));
+                        const targetBtn = buttons.find(b => b.innerText.includes(buttonTextMatch));
+                        if (targetBtn) {
+                            targetBtn.click();
+                        }
+                    };
+                }
+            }
+            setTimeout(() => {
+                bindCardClick('card_def', '⏰ View Defaulters');
+                bindCardClick('card_mis', '⚠️ View Mispunches');
+                bindCardClick('card_rep_mis', '🔄 View Rep. Mispunches');
+                bindCardClick('card_rep_def', '⏳ View Rep. Deficits');
+            }, 150);
+            </script>
+            """,
+            height=0,
+            width=0
+        )
+
+        display_df = final_df.copy()
+        if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
+        elif st.session_state.selected_view == "rep_mispunches": display_df = repeated_mispunches.copy()
+        elif st.session_state.selected_view == "mispunches": display_df = mispunches.copy()
+        elif st.session_state.selected_view == "defaulters": display_df = defaulters.copy()
+
+        display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
+
+        st.subheader(f"📊 Results View ({len(display_df)} Records)")
+        
+        col_search, col_download = st.columns([7, 3])
+        with col_search:
+            search = st.text_input("🔍 Search Employee by Name or ID...")
+        with col_download:
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+            csv_data = display_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download File",
+                data=csv_data,
+                file_name=f"compliance_report_{st.session_state.selected_view}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+        if search:
+            display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
+        
+        cols_to_drop = ['Issue Type']
+        if st.session_state.selected_view in ["defaulters", "rep_defaulters"]:
+            cols_to_drop.append('Total Punches')
+            punch_cols_to_hide = [c for c in display_df.columns if "IN" in c or "OUT" in c]
+            cols_to_drop.extend(punch_cols_to_hide)
+            
+        cols_to_drop = [c for c in cols_to_drop if c in display_df.columns]
+        
+        final_display_df = display_df.drop(columns=cols_to_drop)
+
+        try:
+            selection_event = st.dataframe(
+                final_display_df, 
+                use_container_width=True, 
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row"
+            )
+            
+            if selection_event and len(selection_event.selection.rows) > 0:
+                selected_idx = selection_event.selection.rows[0]
+                selected_id = final_display_df.iloc[selected_idx]['P.Soft ID']
+                selected_name = final_display_df.iloc[selected_idx]['Employee Name']
+                total_offenses = len(final_display_df[final_display_df['P.Soft ID'] == selected_id])
+                
+                st.info(f"📌 **{selected_name}** (ID: {selected_id}) ki is list mein total **{total_offenses}** entries hain.")
+                
+        except Exception as e:
+            st.dataframe(final_display_df, use_container_width=True, hide_index=True)
+
+        if missing_files:
+            st.warning(f"⚠️ **Note:** Following dates have no data file reflected for **{selected_warehouse}**: {', '.join(missing_files)}")
+    else:
+        st.info(f"📂 **No data reflected:** No valid attendance records found for **{selected_warehouse}** in the selected date range.")
+
+else:
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown('<div class="feature-card fc-blue"><div style="font-size:22px;">📊</div><div class="fc-title">Accurate Attendance Tracking</div><div class="fc-text">Detect mispunches and anomalies in real time</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="feature-card fc-orange"><div style="font-size:22px;">🛡️</div><div class="fc-title">Stronger Policy Compliance</div><div class="fc-text">Ensure workforce discipline with smarter insights</div></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown('<div class="feature-card fc-green"><div style="font-size:22px;">📈</div><div class="fc-title">Data-Driven Decisions</div><div class="fc-text">Turn attendance data into actionable intelligence</div></div>', unsafe_allow_html=True)
+    with c4:
+        st.markdown('<div class="feature-card fc-purple"><div style="font-size:22px;">👥</div><div class="fc-title">Empowered Workforce</div><div class="fc-text">Build a reliable and productive work environment</div></div>', unsafe_allow_html=True)
+
+st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 15px 0 10px 0;'>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #64748b; font-size: 11px; font-weight: 600; margin: 0;'>Built for a smarter, stronger and compliant workplace</p>", unsafe_allow_html=True)
