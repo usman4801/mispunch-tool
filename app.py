@@ -308,9 +308,6 @@ if not att_df.empty:
         total_punches = len(punches)
         target_str = str(row.get('Working Hours', '9 Hours'))
         
-        # CHANGED: 15 minutes grace period logic applied here
-        # For 7 Hours (420 mins): 420-15 = 405, 420+15 = 435
-        # For 9 Hours (540 mins): 540-15 = 525, 540+15 = 555
         min_mins = 405 if '7' in target_str else 525
         max_mins = 435 if '7' in target_str else 555
 
@@ -366,19 +363,21 @@ if not att_df.empty:
     if "selected_view" not in st.session_state: st.session_state.selected_view = "all"
 
     st.markdown("<br>", unsafe_allow_html=True)
+    
+    # UPDATED TILE SERIES: 1. Defaulter Hours, 2. Mispunches, 3. Repeated Mispunches, 4. Repeated Time Deficits
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
-    with c2:
-        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
-    with c3:
-        st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
-    with c4:
         st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
         if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
+    with c2:
+        st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
+        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
+    with c3:
+        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
+        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
+    with c4:
+        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
+        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
 
     display_df = final_df.copy()
     if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
