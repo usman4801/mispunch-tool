@@ -364,20 +364,28 @@ if not att_df.empty:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # UPDATED TILE SERIES: 1. Defaulter Hours, 2. Mispunches, 3. Repeated Mispunches, 4. Repeated Time Deficits
+    # TILES SERIES: 1. Defaulter Hours, 2. Mispunches, 3. Repeated Mispunches, 4. Repeated Time Deficits
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
+        if st.button(f"⏰ Defaulter Hours\n\n{len(defaulters)}", key="card_def", use_container_width=True):
+            st.session_state.selected_view = "defaulters"
+        if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): 
+            st.session_state.selected_view = "defaulters"
     with c2:
-        st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
+        if st.button(f"⚠️ Mispunches\n\n{len(mispunches)}", key="card_mis", use_container_width=True):
+            st.session_state.selected_view = "mispunches"
+        if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): 
+            st.session_state.selected_view = "mispunches"
     with c3:
-        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
-        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
+        if st.button(f"🔄 Repeated Mispunches\n\n{len(repeated_mispunches)}", key="card_rep_mis", use_container_width=True):
+            st.session_state.selected_view = "rep_mispunches"
+        if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): 
+            st.session_state.selected_view = "rep_mispunches"
     with c4:
-        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
-        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
+        if st.button(f"⏳ Repeated Time Deficits\n\n{len(repeated_defaulters)}", key="card_rep_def", use_container_width=True):
+            st.session_state.selected_view = "rep_defaulters"
+        if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): 
+            st.session_state.selected_view = "rep_defaulters"
 
     display_df = final_df.copy()
     if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
@@ -387,7 +395,20 @@ if not att_df.empty:
 
     display_df.sort_values(by=['P.Soft ID', 'Date'], inplace=True)
 
-    st.subheader(f"📊 Results View ({len(display_df)} Records)")
+    # HEADER WITH DOWNLOAD REPORT BUTTON
+    col_title, col_download = st.columns([7, 3])
+    with col_title:
+        st.subheader(f"📊 Results View ({len(display_df)} Records)")
+    with col_download:
+        csv_data = display_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Report",
+            data=csv_data,
+            file_name=f"compliance_report_{st.session_state.selected_view}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
     search = st.text_input("🔍 Search Employee by Name or ID...")
     if search:
         display_df = display_df[display_df['Employee Name'].str.contains(search, case=False, na=False) | display_df['P.Soft ID'].str.contains(search, case=False, na=False)]
