@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import base64
 import os
 import glob
+import streamlit.components.v1 as components  # <--- NEW ADDITION: For clickable tiles script
 
 st.set_page_config(
     page_title="Workforce Compliance Monitor", 
@@ -136,7 +137,7 @@ st.markdown(
     .fc-title { font-size: 13px; font-weight: 800; color: #1e1b4b; margin-top: 6px; margin-bottom: 3px; }
     .fc-text { font-size: 10.5px; color: #475569; line-height: 1.3; font-weight: 500; }
 
-    /* ORIGINAL HOVER & POPUP EFFECT RESTORED */
+    /* ORIGINAL HOVER & POPUP EFFECT WITH CLICKABLE CURSOR */
     .metric-card {
         padding: 22px;
         border-radius: 14px 14px 0 0;
@@ -144,6 +145,7 @@ st.markdown(
         font-family: sans-serif;
         box-shadow: 0 6px 15px rgba(0,0,0,0.1);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer; /* <--- Shows hand icon on hover to signify it's clickable */
     }
     .metric-card:hover {
         transform: translateY(-4px);
@@ -380,20 +382,49 @@ if not att_df.empty:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # EXACT ORIGINAL TILES RESTORED (Sequence Maintained)
+    # TILES RENDER (Added 'id' attributes so script can find them)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f'<div class="metric-card card-purple"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-purple" id="card_def"><div class="card-title">⏰ Defaulter Hours</div><div class="card-value">{len(defaulters)}</div></div>', unsafe_allow_html=True)
         if st.button("⏰ View Defaulters ➔", key="btn_def", use_container_width=True): st.session_state.selected_view = "defaulters"
     with c2:
-        st.markdown(f'<div class="metric-card card-orange"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-orange" id="card_mis"><div class="card-title">⚠️ Mispunches</div><div class="card-value">{len(mispunches)}</div></div>', unsafe_allow_html=True)
         if st.button("⚠️ View Mispunches ➔", key="btn_mis", use_container_width=True): st.session_state.selected_view = "mispunches"
     with c3:
-        st.markdown(f'<div class="metric-card card-red"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-red" id="card_rep_mis"><div class="card-title">🔄 Repeated Mispunches</div><div class="card-value">{len(repeated_mispunches)}</div></div>', unsafe_allow_html=True)
         if st.button("🔄 View Rep. Mispunches ➔", key="btn_rep_mis", use_container_width=True): st.session_state.selected_view = "rep_mispunches"
     with c4:
-        st.markdown(f'<div class="metric-card card-blue"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card card-blue" id="card_rep_def"><div class="card-title">⏳ Repeated Time Deficits</div><div class="card-value">{len(repeated_defaulters)}</div></div>', unsafe_allow_html=True)
         if st.button("⏳ View Rep. Deficits ➔", key="btn_rep_def", use_container_width=True): st.session_state.selected_view = "rep_defaulters"
+
+    # THIS SCRIPT LINKS THE TILE CLICKS TO THE BUTTON CLICKS IN THE BACKGROUND
+    components.html(
+        """
+        <script>
+        const doc = window.parent.document;
+        function bindCardClick(cardId, buttonTextMatch) {
+            const card = doc.getElementById(cardId);
+            if (card) {
+                card.onclick = function() {
+                    const buttons = Array.from(doc.querySelectorAll("button"));
+                    const targetBtn = buttons.find(b => b.innerText.includes(buttonTextMatch));
+                    if (targetBtn) {
+                        targetBtn.click();
+                    }
+                };
+            }
+        }
+        setTimeout(() => {
+            bindCardClick('card_def', '⏰ View Defaulters');
+            bindCardClick('card_mis', '⚠️ View Mispunches');
+            bindCardClick('card_rep_mis', '🔄 View Rep. Mispunches');
+            bindCardClick('card_rep_def', '⏳ View Rep. Deficits');
+        }, 150);
+        </script>
+        """,
+        height=0,
+        width=0
+    )
 
     display_df = final_df.copy()
     if st.session_state.selected_view == "rep_defaulters": display_df = repeated_defaulters.copy()
