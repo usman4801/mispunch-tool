@@ -196,7 +196,7 @@ with f_col1:
 
 with f_col2:
     selected_dates_range = st.date_input("Select Date Range • Auto-Fetch (No File Required)", value=[])
-    st.markdown("<p style='font-size: 12px; color: gray; font-weight: normal; margin-top: -12px;'>Weekly Refresh 10-08-2026 ✅</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size: 12px; color: gray; font-weight: normal; margin-top: -12px;'>✅</p>", unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
